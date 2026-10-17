@@ -1,0 +1,198 @@
+<!doctype html>
+<html lang="ko">
+<head>
+<meta charset="utf-8">
+<meta name="viewport" content="width=device-width, initial-scale=1, viewport-fit=cover">
+<title>국방기술 아틀라스</title>
+<meta name="claude:viewport-fit-sides" content="cover">
+<meta name="description" content="대한민국 국방기술기획서 기반 국방기술 현황·과제 계보·예산·중복성 점검·기술 연계 온톨로지·향후 방향">
+<link rel="preconnect" href="https://fonts.googleapis.com"><link rel="preconnect" href="https://fonts.gstatic.com" crossorigin>
+<link rel="stylesheet" href="https://fonts.googleapis.com/css2?family=IBM+Plex+Mono:wght@400;500;600&family=IBM+Plex+Sans+KR:wght@400;500;600;700&display=swap">
+<link rel="stylesheet" href="assets/style.css">
+</head>
+<body>
+<div class="shell">
+  <aside class="rail">
+    <div class="brand">
+      <div class="brand-code">ROK Defense S&amp;T · ’17–’40</div>
+      <div class="brand-name">국방기술 <span>아틀라스</span></div>
+    </div>
+    <nav class="nav" id="nav">
+      <a href="#overview" data-v="overview"><span class="k">00</span>개요</a>
+      <a href="#years" data-v="years"><span class="k">01</span>연도별 현황</a>
+      <a href="#tech" data-v="tech"><span class="k">02</span>기술별 현황</a>
+      <a href="#systems" data-v="systems"><span class="k">03</span>체계별 현황</a>
+      <a href="#projects" data-v="projects"><span class="k">04</span>과제 현황</a>
+      <a href="#budget" data-v="budget"><span class="k">05</span>예산</a>
+      <a href="#dup" data-v="dup"><span class="k">06</span>중복성 점검</a>
+      <a href="#onto" data-v="onto"><span class="k">07</span>기술 연계 온톨로지</a>
+      <a href="#forecast" data-v="forecast"><span class="k">08</span>향후 방향</a>
+      <a href="#about" data-v="about"><span class="k">09</span>자료·방법</a>
+    </nav>
+    <div class="rail-foot">
+      <button class="theme-btn" id="themeBtn" type="button">화면 테마 전환</button>
+      <div>국방기술기획서 9개 판(’17~’26 발간) 및 관련 기획·조사서 기반. 공개본 수록 과제만 포함.</div>
+    </div>
+  </aside>
+
+  <main>
+    <div class="wrap">
+      <div id="boot" class="loading">데이터를 불러오는 중…</div>
+
+      <!-- 00 OVERVIEW -->
+      <section class="view" id="v-overview" hidden>
+        <div class="hero">
+          <div class="stamp">기준 ’26~’40 국방기술기획서<br>업데이트 2026.10</div>
+          <div class="eyebrow">Overview</div>
+          <h1>대한민국 국방기술 과제 10년의 지도</h1>
+          <p class="lede">국방기술기획서 9개 판에 실린 과제를 하나의 계보로 묶고, 10대 국방전략기술·무기체계 분야·기술분야로 연결했습니다. 신규 과제를 기획할 때 기존 과제와의 중복을 점검하고, 기술 간 연계와 향후 방향을 확인하는 데 쓰도록 만들었습니다.</p>
+        </div>
+        <div class="kpis" id="kpis"></div>
+        <div class="grid-2">
+          <div class="panel"><h2>기획서 판별 수록 과제 수</h2><p class="note">각 판에 수록된 과제(공개본 기준). ’20~’34판은 자료 미보유.</p><div class="chart" id="c-ed-n"></div></div>
+          <div class="panel"><h2>기획서 판별 수록 과제 총사업비</h2><p class="note">과제별 전체 사업기간 예산 합계(억원). ’17~’19판은 예산 미기재.</p><div class="chart" id="c-ed-b"></div></div>
+        </div>
+        <div class="panel"><h2>데이터가 말해주는 것</h2><ul class="insights" id="ov-ins"></ul></div>
+      </section>
+
+      <!-- 01 YEARS -->
+      <section class="view" id="v-years" hidden>
+        <div><div class="eyebrow">01 · By edition</div><h1>연도별 현황</h1><p class="lede">기획서 판(발간연도)을 고르면 그 판의 과제 구성이 바뀝니다. 아래 열지도는 판별 흐름을 한 번에 비교합니다.</p></div>
+        <div class="chips" id="ed-chips"></div>
+        <div class="grid-3">
+          <div class="panel"><h3>무기체계 분야</h3><div class="chart" id="c-y-dom"></div></div>
+          <div class="panel"><h3>기술분야</h3><div class="chart" id="c-y-tf"></div></div>
+          <div class="panel"><h3>사업 유형</h3><div class="chart" id="c-y-prog"></div></div>
+        </div>
+        <div class="panel"><h2>착수연도별 신규 과제 수</h2><p class="note">계보로 묶은 고유 과제를 착수연도 기준으로 집계. 2027년 이후는 기획 단계 과제.</p><div class="chart" id="c-y-start"></div></div>
+        <div class="grid-2">
+          <div class="panel"><h2>판별 무기체계 분야 과제 수</h2><div class="chart tall" id="c-y-hdom"></div></div>
+          <div class="panel"><h2>판별 국방전략기술 분야 과제 수</h2><p class="note">’26판은 기획서 표기, 이전 판은 과제 계보와 텍스트 분류로 추정.</p><div class="chart tall" id="c-y-hstr"></div></div>
+        </div>
+      </section>
+
+      <!-- 02 TECH -->
+      <section class="view" id="v-tech" hidden>
+        <div><div class="eyebrow">02 · By technology</div><h1>기술별 현황</h1><p class="lede">10대 국방전략기술 분야별 과제·기술개발소요·민간기술 규모와 착수 추이입니다. 카드를 누르면 해당 분야 과제 목록으로 이동합니다.</p></div>
+        <div class="fcards" id="fcards"></div>
+        <div class="grid-2">
+          <div class="panel"><h2>판별 기술분야 구성</h2><p class="note">’25판부터 8대→6대 기술분야로 개편되어 통합 분류(센서·제어, 기계 등)로 맞춤.</p><div class="chart tall" id="c-t-tf"></div></div>
+          <div class="panel"><h2>30대 국방전략기술별 기술개발소요</h2><p class="note">’26~’40 기획서의 기술개발소요 2,068건. 막대 길이는 소요 수, 진한 부분은 미확보.</p><div class="chart tall" id="c-t-l1"></div></div>
+        </div>
+        <div class="panel">
+          <div class="sec-head"><div><h2>핵심 기술개념 추세</h2><p class="note">과제 텍스트에서 추출한 기술개념(온톨로지 Concept)별 비중. 과제 8건 이상 개념 중 상위 30개. 상승지수 = 최근(’23~’26 착수) 비중 ÷ 과거(’16~’22 착수) 비중.</p></div>
+            <div class="field"><label for="cc-sort">정렬</label><select id="cc-sort"><option value="momentum">상승지수 높은 순</option><option value="nProj">과제 수 많은 순</option><option value="nNeedsOpen">미확보 소요 많은 순</option><option value="low">상승지수 낮은 순</option></select></div></div>
+          <div class="tbl-wrap"><table id="cc-tbl"></table></div>
+        </div>
+      </section>
+
+      <!-- 03 SYSTEMS -->
+      <section class="view" id="v-systems" hidden>
+        <div><div class="eyebrow">03 · By weapon system</div><h1>체계별 현황</h1><p class="lede">10대 무기체계 분야와 기술의 교차, 실제 적용 무기체계(소재·부품 기획), 그리고 국가별 기술수준 조사 결과를 함께 봅니다.</p></div>
+        <div class="grid-2">
+          <div class="panel"><h2>무기체계 분야 × 국방전략기술</h2><p class="note">’21판 이후 고유 과제 기준(최신 판 표기).</p><div class="chart tall" id="c-s-hm"></div></div>
+          <div class="panel"><h2>한국 무기체계별 기술수준 변화</h2><p class="note">최고선진국(미국)=100 대비 %. 점: 2018 → 막대 끝: 2024. 국가별 국방과학기술 수준조사서.</p><div class="chart tall" id="c-s-lv"></div></div>
+        </div>
+        <div class="grid-2">
+          <div class="panel"><h2>12개국 국방과학기술 수준</h2><div class="tbl-wrap"><table id="lv-tbl"></table></div></div>
+          <div class="panel"><h2>소재·부품 국산화 과제가 많은 무기체계</h2><p class="note">’26~’30 무기체계 소재·부품 기획서 착수예상 과제 210건.</p><div class="chart tall" id="c-s-parts"></div></div>
+        </div>
+        <div class="panel"><div class="sec-head"><h2>소재·부품 착수예상 과제</h2><div class="field"><label for="parts-q">검색</label><input id="parts-q" type="search" placeholder="무기체계 또는 부품명"></div></div><div class="tbl-wrap" style="max-height:420px"><table id="parts-tbl"></table></div></div>
+      </section>
+
+      <!-- 04 PROJECTS -->
+      <section class="view" id="v-projects" hidden>
+        <div><div class="eyebrow">04 · Projects</div><h1>과제 현황</h1><p class="lede">9개 판의 과제 기록 5,784건을 과제명 변경 이력까지 따라 1,791개 고유 과제로 묶었습니다. 행을 누르면 계보, 유사 과제, 연계 기술개발소요를 볼 수 있습니다.</p></div>
+        <div class="controls">
+          <div class="field" style="flex:1 1 220px"><label for="p-q">검색</label><input id="p-q" type="search" placeholder="과제명·개요·키워드"></div>
+          <div class="field"><label for="p-scope">범위</label><select id="p-scope"><option value="all">전체 판</option><option value="cur">’26판 현행</option><option value="past">종료·미수록</option></select></div>
+          <div class="field"><label for="p-dom">무기체계 분야</label><select id="p-dom"></select></div>
+          <div class="field"><label for="p-str">국방전략기술</label><select id="p-str"></select></div>
+          <div class="field"><label for="p-prog">사업 유형</label><select id="p-prog"></select></div>
+          <div class="field"><label for="p-sort">정렬</label><select id="p-sort"><option value="start">착수연도 최신순</option><option value="budget">예산 큰 순</option><option value="eds">수록 판 많은 순</option><option value="name">과제명</option></select></div>
+          <button class="btn ghost" id="p-csv" type="button">CSV 내려받기</button>
+        </div>
+        <div class="pager" id="p-info"></div>
+        <div class="tbl-wrap"><table id="p-tbl"></table></div>
+        <div class="pager"><span></span><span><button class="chip" id="p-prev" type="button">이전</button> <button class="chip" id="p-next" type="button">다음</button></span></div>
+      </section>
+
+      <!-- 05 BUDGET -->
+      <section class="view" id="v-budget" hidden>
+        <div><div class="eyebrow">05 · Budget</div><h1>예산</h1><p class="lede">과제 총사업비를 사업기간에 균등 배분해 연도별 투자 규모를 추정했습니다. 실제 연차별 집행액과는 다를 수 있습니다.</p></div>
+        <div class="panel"><h2>국방전략기술 분야별 연도별 추정 투자</h2><p class="note">억원/년. 모든 칸이 같은 세로축을 씁니다. 2026년 이후는 기획 확정 과제분만 반영.</p><div class="chart xtall" id="c-b-sm"></div></div>
+        <div class="grid-2">
+          <div class="panel"><h2>’26판 현행 과제 총사업비 · 무기체계 분야</h2><div class="chart tall" id="c-b-dom"></div></div>
+          <div class="panel"><h2>’26판 현행 과제 총사업비 · 사업 유형</h2><div class="chart tall" id="c-b-prog"></div></div>
+        </div>
+        <div class="panel"><h2>총사업비 상위 과제</h2><div class="tbl-wrap"><table id="b-top"></table></div></div>
+      </section>
+
+      <!-- 06 DUP -->
+      <section class="view" id="v-dup" hidden>
+        <div><div class="eyebrow">06 · Overlap check</div><h1>중복성 점검</h1><p class="lede">계획 중인 과제의 과제명과 개요를 넣으면 기존 국방기술과제 1,791건, ’26~’40 기술개발소요 2,068건, 민간보유기술 167건, 소재·부품 과제 210건과 비교해 유사도를 계산합니다. 계산은 브라우저 안에서만 이루어지며 입력 내용은 어디에도 전송되지 않습니다.</p></div>
+        <div class="panel">
+          <div class="chips" id="dup-mode"><button class="chip" aria-pressed="true" data-m="one" type="button">단건 점검</button><button class="chip" aria-pressed="false" data-m="batch" type="button">일괄 점검</button></div>
+          <div id="dup-one" class="grid-2">
+            <div class="field"><label for="d-title">과제명</label><input id="d-title" type="text" value="군집 무인기 자율 임무할당 및 협업 교전 기술"></div>
+            <div class="field"><label for="d-scope">비교 대상</label><select id="d-scope"><option value="all">전체(과제·소요·민간·부품)</option><option value="proj">국방기술과제만</option><option value="cur">’26판 현행 과제만</option></select></div>
+            <div class="field span-2"><label for="d-ov">개요·연구내용</label><textarea id="d-ov" rows="4">다수의 소형 무인기가 전장 상황에 따라 임무를 자율적으로 할당·재할당하고, 유인기와 협업하여 표적을 탐지·교전하는 군집 운용 알고리즘 및 통신 네트워크 기술 개발</textarea></div>
+          </div>
+          <div id="dup-batch" hidden>
+            <div class="field"><label for="d-batch">한 줄에 과제 하나: 과제명 | 개요(선택)</label><textarea id="d-batch" rows="7">고에너지 레이저 대드론 빔 제어 기술 | 소형 드론 대응을 위한 레이저 빔 추적·조준 및 대기 외란 보정
+극초음속 비행체 열방호 복합소재 | 마하 5 이상 비행 환경의 고온 내열 복합재 설계
+국방 특화 거대언어모델 기반 정보분석 지원 | 첩보 문서 요약·분류 및 지휘결심 지원
+수중 자율무인잠수정 장기운용 연료전지 | 장기 수중작전용 고밀도 연료전지 파워팩</textarea></div>
+          </div>
+          <div class="controls"><button class="btn" id="d-run" type="button">유사도 점검</button><span class="note" id="d-status">예시 입력이 들어 있습니다. 계획 과제로 바꿔 점검하세요.</span></div>
+        </div>
+        <div id="d-out" class="results"></div>
+      </section>
+
+      <!-- 07 ONTOLOGY -->
+      <section class="view" id="v-onto" hidden>
+        <div><div class="eyebrow">07 · Ontology</div><h1>기술 연계 온톨로지</h1><p class="lede">과제·기술개발소요·민간기술을 공통 개념(Concept)에 연결하고, 같은 과제 안에서 함께 등장하는 개념끼리 이었습니다. 선이 굵을수록 함께 쓰이는 과제가 많습니다. 노드를 누르면 연결된 과제와 소요를 볼 수 있습니다.</p></div>
+        <div class="panel">
+          <h2>온톨로지 구조</h2>
+          <div class="schema" id="schema"></div>
+        </div>
+        <div class="chips" id="onto-mode"><button class="chip" aria-pressed="true" data-m="graph" type="button">개념 연계망</button><button class="chip" aria-pressed="false" data-m="tree" type="button">국방전략기술 체계(10·30·100)</button></div>
+        <div class="onto">
+          <div class="panel"><div class="legend" id="onto-legend"></div><div class="chart xtall" id="c-onto"></div></div>
+          <div class="side" id="onto-side"><h3>개념을 선택하세요</h3><p class="note">연계망에서 노드를 누르면 개념의 정의 분야, 관련 과제, 기술개발소요, 함께 쓰이는 개념이 여기에 표시됩니다.</p></div>
+        </div>
+      </section>
+
+      <!-- 08 FORECAST -->
+      <section class="view" id="v-forecast" hidden>
+        <div><div class="eyebrow">08 · Outlook</div><h1>향후 방향</h1><p class="lede">’26~’40 기획서의 기술개발소요(단기·중기·장기)와 확보 여부, 과거 착수 추세, 미국 국방과학기술 전략의 우선순위를 겹쳐 분야별 방향을 예측했습니다. 추세선은 단순 선형 추정입니다.</p></div>
+        <div class="grid-2">
+          <div class="panel"><h2>분야별 기술개발소요 파이프라인</h2><p class="note">’26~’40 기획서. 단기≈~’30, 중기≈~’35, 장기≈~’40.</p><div class="chart tall" id="c-f-pipe"></div></div>
+          <div class="panel"><h2>분야별 신규 착수 추세와 2030년 추정</h2><p class="note">점선은 ’17~’26 착수 건수의 선형 추세를 연장한 값.</p><div class="chart tall" id="c-f-trend"></div></div>
+        </div>
+        <div class="grid-2">
+          <div class="panel"><h2>뜨는 기술개념</h2><p class="note">최근 착수 과제에서 비중이 커진 개념.</p><div class="chart tall" id="c-f-up"></div></div>
+          <div class="panel"><h2>미국 전략 우선순위와의 정렬</h2><p class="note">NSSTS(2026.8)·NDSTS(2023)의 핵심기술과 국내 10대 분야 대응.</p><div class="tbl-wrap"><table id="f-us"></table></div></div>
+        </div>
+        <div class="panel"><h2>분야별 전망 요약</h2><p class="note">데이터에서 자동 산출한 요약입니다. 기획 판단의 출발점으로 쓰세요.</p><div class="tbl-wrap"><table id="f-sum"></table></div></div>
+        <div class="panel"><h2>최근 해외 동향 신호</h2><p class="note">국방 AI(AI+IT) 뉴스레터 제74호(2026.10.4~10).</p><ul class="insights" id="f-sig"></ul></div>
+      </section>
+
+      <!-- 09 ABOUT -->
+      <section class="view" id="v-about" hidden>
+        <div><div class="eyebrow">09 · Sources &amp; method</div><h1>자료·방법</h1></div>
+        <div class="grid-2">
+          <div class="panel"><h2>사용 자료</h2><div class="tbl-wrap"><table id="src-tbl"></table></div></div>
+          <div class="panel"><h2>처리 방법</h2><ul class="insights" id="method"></ul></div>
+        </div>
+      </section>
+    </div>
+  </main>
+</div>
+<div class="scrim" id="scrim" hidden></div>
+<aside class="drawer" id="drawer" hidden aria-label="과제 상세"></aside>
+
+<script src="https://cdnjs.cloudflare.com/ajax/libs/echarts/5.4.3/echarts.min.js"></script>
+<script src="assets/app.js"></script>
+</body>
+</html>
