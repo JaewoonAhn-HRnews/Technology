@@ -20,15 +20,16 @@
     <nav class="nav" id="nav">
       <a href="#overview" data-v="overview"><span class="k">00</span>개요</a>
       <a href="#years" data-v="years"><span class="k">01</span>연도별 현황</a>
-      <a href="#tech" data-v="tech"><span class="k">02</span>기술별 현황</a>
-      <a href="#systems" data-v="systems"><span class="k">03</span>체계별 현황</a>
-      <a href="#projects" data-v="projects"><span class="k">04</span>과제 현황</a>
-      <a href="#budget" data-v="budget"><span class="k">05</span>예산</a>
-      <a href="#dup" data-v="dup"><span class="k">06</span>중복성 점검</a>
-      <a href="#onto" data-v="onto"><span class="k">07</span>기술 연계 온톨로지</a>
-      <a href="#forecast" data-v="forecast"><span class="k">08</span>향후 방향</a>
-      <a href="#about" data-v="about"><span class="k">09</span>자료·방법</a>
-      <a href="#db" data-v="db"><span class="k">10</span><span>데이터 관리<span id="nav-db-n" class="num"></span></span></a>
+      <a href="#compare" data-v="compare"><span class="k">02</span>분야·연도 비교</a>
+      <a href="#tech" data-v="tech"><span class="k">03</span>기술별 현황</a>
+      <a href="#systems" data-v="systems"><span class="k">04</span>체계별 현황</a>
+      <a href="#projects" data-v="projects"><span class="k">05</span>과제 현황</a>
+      <a href="#budget" data-v="budget"><span class="k">06</span>예산</a>
+      <a href="#dup" data-v="dup"><span class="k">07</span>중복성 점검</a>
+      <a href="#onto" data-v="onto"><span class="k">08</span>기술 연계 온톨로지</a>
+      <a href="#forecast" data-v="forecast"><span class="k">09</span>향후 방향</a>
+      <a href="#about" data-v="about"><span class="k">10</span>자료·방법</a>
+      <a href="#db" data-v="db"><span class="k">11</span><span>데이터 관리<span id="nav-db-n" class="num"></span></span></a>
     </nav>
     <div class="rail-foot">
       <button class="theme-btn" id="themeBtn" type="button">화면 테마 전환</button>
@@ -72,9 +73,24 @@
         </div>
       </section>
 
+
+      <!-- 02 COMPARE -->
+      <section class="view" id="v-compare" hidden>
+        <div><div class="eyebrow">02 · Field × edition</div><h1>분야·연도 비교</h1><p class="lede">국방기술기획서가 판마다 분류체계와 과제 구성을 어떻게 바꿨는지 10대 분야 단위로 비교합니다. ’24~’26판은 기획서에 실린 분야별 공식 과제 수와 국방전략기술 로드맵의 과제 연결을 사용했습니다.</p></div>
+        <div class="panel"><h2>편제 변천</h2><p class="note">목록 중심에서 4계층 로드맵(분야→국방전략기술→세부기술→구성기술→기술개발소요)으로 이동한 과정.</p><div class="frame" id="cmp-frame"></div></div>
+        <div class="grid-2">
+          <div class="panel"><h2>10대 분야별 과제 수 (기획서 공식)</h2><p class="note">’23판은 과제가 아닌 국방기술 수(322개)라 참고값으로 회색 표기. 화살표는 직전 판 대비 증감.</p><div class="tbl-wrap"><table id="cmp-ft"></table></div></div>
+          <div class="panel"><h2>판 사이 증감률</h2><p class="note">파랑은 증가, 주황은 감소. 칸을 누르면 아래에서 해당 분야를 엽니다.</p><div class="chart" id="c-cmp-delta"></div></div>
+        </div>
+        <div class="panel"><h2>분야별 과제 수 추이</h2><p class="note">모든 칸이 같은 세로축. ’24·’25·’26판 공식 과제 수.</p><div class="chart" id="c-cmp-sm"></div></div>
+        <div class="chips" id="cmp-fields"></div>
+        <div id="cmp-detail" style="display:grid;gap:18px"></div>
+        <div class="panel"><h2>분야 간 중복 후보 세부기술 (’26-’40)</h2><p class="note">서로 다른 국방전략기술에 비슷한 이름·명세의 세부기술이 있는 경우. 기술트리 원칙(하위 무중복) 점검용.</p><div class="tbl-wrap"><table id="cmp-dups"></table></div></div>
+      </section>
+
       <!-- 02 TECH -->
       <section class="view" id="v-tech" hidden>
-        <div><div class="eyebrow">02 · By technology</div><h1>기술별 현황</h1><p class="lede">10대 국방전략기술 분야별 과제·기술개발소요·민간기술 규모와 착수 추이입니다. 카드를 누르면 해당 분야 과제 목록으로 이동합니다.</p></div>
+        <div><div class="eyebrow">03 · By technology</div><h1>기술별 현황</h1><p class="lede">10대 국방전략기술 분야별 과제·기술개발소요·민간기술 규모와 착수 추이입니다. 카드를 누르면 해당 분야 과제 목록으로 이동합니다.</p></div>
         <div class="panel search-panel"><div class="controls"><div class="field" style="flex:1 1 320px"><label for="s-tech">기술 검색 (기술개념·국방전략기술·세부기술·기술개발소요·과제)</label><input id="s-tech" type="search" placeholder="예: 레이저, 극초음속, 군집 드론, 양자 센서, SAR"></div><button class="btn" type="button" id="s-tech-go">검색</button><button class="btn ghost" type="button" id="s-tech-clr">지우기</button></div><div id="s-tech-out" class="sres"></div></div>
         <div class="fcards" id="fcards"></div>
         <div class="grid-2">
@@ -90,7 +106,7 @@
 
       <!-- 03 SYSTEMS -->
       <section class="view" id="v-systems" hidden>
-        <div><div class="eyebrow">03 · By weapon system</div><h1>체계별 현황</h1><p class="lede">10대 무기체계 분야와 기술의 교차, 실제 적용 무기체계(소재·부품 기획), 그리고 국가별 기술수준 조사 결과를 함께 봅니다.</p></div>
+        <div><div class="eyebrow">04 · By weapon system</div><h1>체계별 현황</h1><p class="lede">10대 무기체계 분야와 기술의 교차, 실제 적용 무기체계(소재·부품 기획), 그리고 국가별 기술수준 조사 결과를 함께 봅니다.</p></div>
         <div class="panel search-panel"><div class="controls"><div class="field" style="flex:1 1 320px"><label for="s-sys">무기체계 검색 (과제·소재부품·기술수준)</label><input id="s-sys" type="search" placeholder="예: KF-21, 잠수함, K9 자주포, 소나, 레이더, 회전익"></div><button class="btn" type="button" id="s-sys-go">검색</button><button class="btn ghost" type="button" id="s-sys-clr">지우기</button></div><div id="s-sys-out" class="sres"></div></div>
         <div class="grid-2">
           <div class="panel"><h2>무기체계 분야 × 국방전략기술</h2><p class="note">’21판 이후 고유 과제 기준(최신 판 표기).</p><div class="chart tall" id="c-s-hm"></div></div>
@@ -105,7 +121,7 @@
 
       <!-- 04 PROJECTS -->
       <section class="view" id="v-projects" hidden>
-        <div><div class="eyebrow">04 · Projects</div><h1>과제 현황</h1><p class="lede">9개 판의 과제 기록 5,784건을 과제명 변경 이력까지 따라 1,791개 고유 과제로 묶었습니다. 행을 누르면 계보, 유사 과제, 연계 기술개발소요를 볼 수 있습니다.</p></div>
+        <div><div class="eyebrow">05 · Projects</div><h1>과제 현황</h1><p class="lede">9개 판의 과제 기록 5,784건을 과제명 변경 이력까지 따라 1,791개 고유 과제로 묶었습니다. 행을 누르면 계보, 유사 과제, 연계 기술개발소요를 볼 수 있습니다.</p></div>
         <div class="controls">
           <div class="field" style="flex:1 1 220px"><label for="p-q">검색</label><input id="p-q" type="search" placeholder="과제명·개요·키워드"></div>
           <div class="field"><label for="p-scope">범위</label><select id="p-scope"><option value="all">전체 판</option><option value="cur">’26판 현행</option><option value="past">종료·미수록</option></select></div>
@@ -122,7 +138,7 @@
 
       <!-- 05 BUDGET -->
       <section class="view" id="v-budget" hidden>
-        <div><div class="eyebrow">05 · Budget</div><h1>예산</h1><p class="lede">과제 총사업비를 사업기간에 균등 배분해 연도별 투자 규모를 추정했습니다. 실제 연차별 집행액과는 다를 수 있습니다.</p></div>
+        <div><div class="eyebrow">06 · Budget</div><h1>예산</h1><p class="lede">과제 총사업비를 사업기간에 균등 배분해 연도별 투자 규모를 추정했습니다. 실제 연차별 집행액과는 다를 수 있습니다.</p></div>
         <div class="panel search-panel"><div class="controls"><div class="field" style="flex:1 1 320px"><label for="s-bud">예산 검색 (키워드에 해당하는 과제의 총사업비·연도별 투자)</label><input id="s-bud" type="search" placeholder="예: 엔진, 레이저, 위성, 국방협업"></div><button class="btn" type="button" id="s-bud-go">검색</button><button class="btn ghost" type="button" id="s-bud-clr">지우기</button></div><div id="s-bud-out" class="sres"></div></div>
         <div class="panel"><h2>국방전략기술 분야별 연도별 추정 투자</h2><p class="note">억원/년. 모든 칸이 같은 세로축을 씁니다. 2026년 이후는 기획 확정 과제분만 반영.</p><div class="chart xtall" id="c-b-sm"></div></div>
         <div class="grid-2">
@@ -134,7 +150,7 @@
 
       <!-- 06 DUP -->
       <section class="view" id="v-dup" hidden>
-        <div><div class="eyebrow">06 · Overlap check</div><h1>중복성 점검</h1><p class="lede">계획 중인 과제의 과제명과 개요를 넣으면 기존 국방기술과제 1,791건, ’26~’40 기술개발소요 2,068건, 민간보유기술 167건, 소재·부품 과제 210건과 비교해 유사도를 계산합니다. 계산은 브라우저 안에서만 이루어지며 입력 내용은 어디에도 전송되지 않습니다.</p></div>
+        <div><div class="eyebrow">07 · Overlap check</div><h1>중복성 점검</h1><p class="lede">계획 중인 과제의 과제명과 개요를 넣으면 기존 국방기술과제 1,791건, ’26~’40 기술개발소요 2,068건, 민간보유기술 167건, 소재·부품 과제 210건과 비교해 유사도를 계산합니다. 계산은 브라우저 안에서만 이루어지며 입력 내용은 어디에도 전송되지 않습니다.</p></div>
         <div class="panel">
           <div class="chips" id="dup-mode"><button class="chip" aria-pressed="true" data-m="one" type="button">단건 점검</button><button class="chip" aria-pressed="false" data-m="batch" type="button">일괄 점검</button></div>
           <div id="dup-one" class="grid-2">
@@ -155,7 +171,7 @@
 
       <!-- 07 ONTOLOGY -->
       <section class="view" id="v-onto" hidden>
-        <div><div class="eyebrow">07 · Ontology</div><h1>기술 연계 온톨로지</h1><p class="lede">과제·기술개발소요·민간기술을 공통 개념(Concept)에 연결하고, 같은 과제 안에서 함께 등장하는 개념끼리 이었습니다. 선이 굵을수록 함께 쓰이는 과제가 많습니다. 노드를 누르면 연결된 과제와 소요를 볼 수 있습니다.</p></div>
+        <div><div class="eyebrow">08 · Ontology</div><h1>기술 연계 온톨로지</h1><p class="lede">과제·기술개발소요·민간기술을 공통 개념(Concept)에 연결하고, 같은 과제 안에서 함께 등장하는 개념끼리 이었습니다. 선이 굵을수록 함께 쓰이는 과제가 많습니다. 노드를 누르면 연결된 과제와 소요를 볼 수 있습니다.</p></div>
         <div class="panel search-panel"><div class="controls"><div class="field" style="flex:1 1 320px"><label for="s-onto">온톨로지 검색 (기술개념·국방전략기술·세부기술 이동)</label><input id="s-onto" type="search" placeholder="예: 레이더, 극초음속, 양자, 군집운용, S26"></div><button class="btn" type="button" id="s-onto-go">검색</button><button class="btn ghost" type="button" id="s-onto-clr">지우기</button></div><div id="s-onto-out" class="sres"></div></div>
         <div class="panel">
           <h2>온톨로지 구조</h2>
@@ -170,7 +186,7 @@
 
       <!-- 08 FORECAST -->
       <section class="view" id="v-forecast" hidden>
-        <div><div class="eyebrow">08 · Outlook</div><h1>향후 방향</h1><p class="lede">’26~’40 기획서의 기술개발소요(단기·중기·장기)와 확보 여부, 과거 착수 추세, 미국 국방과학기술 전략의 우선순위를 겹쳐 분야별 방향을 예측했습니다. 추세선은 단순 선형 추정입니다.</p></div>
+        <div><div class="eyebrow">09 · Outlook</div><h1>향후 방향</h1><p class="lede">’26~’40 기획서의 기술개발소요(단기·중기·장기)와 확보 여부, 과거 착수 추세, 미국 국방과학기술 전략의 우선순위를 겹쳐 분야별 방향을 예측했습니다. 추세선은 단순 선형 추정입니다.</p></div>
         <div class="grid-2">
           <div class="panel"><h2>분야별 기술개발소요 파이프라인</h2><p class="note">’26~’40 기획서. 단기≈~’30, 중기≈~’35, 장기≈~’40.</p><div class="chart tall" id="c-f-pipe"></div></div>
           <div class="panel"><h2>분야별 신규 착수 추세와 2030년 추정</h2><p class="note">점선은 ’17~’26 착수 건수의 선형 추세를 연장한 값.</p><div class="chart tall" id="c-f-trend"></div></div>
@@ -185,7 +201,7 @@
 
       <!-- 09 ABOUT -->
       <section class="view" id="v-about" hidden>
-        <div><div class="eyebrow">09 · Sources &amp; method</div><h1>자료·방법</h1></div>
+        <div><div class="eyebrow">10 · Sources &amp; method</div><h1>자료·방법</h1></div>
         <div class="grid-2">
           <div class="panel"><h2>사용 자료</h2><div class="tbl-wrap"><table id="src-tbl"></table></div></div>
           <div class="panel"><h2>처리 방법</h2><ul class="insights" id="method"></ul></div>
@@ -194,7 +210,7 @@
 
       <!-- 10 DB -->
       <section class="view" id="v-db" hidden>
-        <div><div class="eyebrow">10 · Database</div><h1>데이터 관리</h1><p class="lede">과제·기술개발소요·민간기술·소재부품 데이터를 추가·수정·삭제하고, 우리 계획 과제를 등록해 중복도를 관리합니다. 변경은 먼저 이 브라우저에 임시 저장되고, ‘GitHub에 저장’을 누르면 저장소의 <span class="mono">data/db/</span> 파일로 커밋되어 모든 사용자에게 반영됩니다.</p></div>
+        <div><div class="eyebrow">11 · Database</div><h1>데이터 관리</h1><p class="lede">과제·기술개발소요·민간기술·소재부품 데이터를 추가·수정·삭제하고, 우리 계획 과제를 등록해 중복도를 관리합니다. 변경은 먼저 이 브라우저에 임시 저장되고, ‘GitHub에 저장’을 누르면 저장소의 <span class="mono">data/db/</span> 파일로 커밋되어 모든 사용자에게 반영됩니다.</p></div>
         <div class="panel">
           <div class="sec-head"><div id="db-status"></div>
             <div class="controls"><button class="btn ghost" type="button" id="db-export">DB 내보내기</button>

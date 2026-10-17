@@ -9,3 +9,5 @@ python3 parse_old.py
 python3 parse_taxo.py
 python3 extract_misc.py
 python3 build_data.py
+python3 parse_compare.py
+python3 build_compare.py

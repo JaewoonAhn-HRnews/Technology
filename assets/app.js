@@ -167,9 +167,10 @@
 
   /* ---------- data load ---------- */
   async function load() {
-    const names = ["projects", "stats", "taxonomy", "needs", "civil", "parts", "support", "global"];
+    const names = ["projects", "stats", "taxonomy", "needs", "civil", "parts", "support", "global", "compare"];
     const res = await Promise.all(names.map((n) => fetch(`data/${n}.json`).then((r) => { if (!r.ok) throw new Error(n); return r.json(); })));
     names.forEach((n, i) => (D[n] = res[i]));
+    D.cmp = D.compare;
     D.base = { projects: D.projects, needs: D.needs, civil: D.civil, parts: D.parts };
     D.cc = Object.fromEntries(D.stats.concepts.map((c) => [c.id, Object.assign({}, c, D.stats.trend[c.id] || {})]));
     D.L1 = Object.fromEntries(D.taxonomy.L1.map((x) => [x.id, x]));
@@ -789,6 +790,125 @@
     ];
     $("#method").innerHTML = m.map(([k, v]) => `<li><span class="k">${k}</span><span>${esc(v)}</span></li>`).join("");
   };
+
+  /* ---------- 02 분야·연도 비교 ---------- */
+  let cmpField = "인공지능";
+  const CED = ["2024", "2025", "2026"];
+  const dl = (a, b) => {
+    if (a == null || b == null) return "";
+    const d = b - a;
+    if (!d) return `<span class="dlt eq">±0</span>`;
+    const pct = a ? ` ${d > 0 ? "+" : ""}${fmt((d / a) * 100)}%` : "";
+    return `<span class="dlt ${d > 0 ? "up" : "dn"}">${d > 0 ? "▲" : "▼"}${Math.abs(d)}${pct}</span>`;
+  };
+  RENDER.compare = function () {
+    const C = D.cmp, t = T();
+    $("#cmp-frame").innerHTML = C.frame.map((f) => `<div class="col"><div class="hd">${esc(f.label)}</div><dl style="margin:0">
+      <dt>근거 문서</dt><dd>${esc(f.basis)}</dd><dt>분류 체계</dt><dd>${esc(f.cls)}</dd><dt>하위 계층·과제</dt><dd>${esc(f.lower)}</dd>
+      <dt>수록 과제(공개본 카드)</dt><dd class="num">${fmt(f.n)}건</dd><dt>주요 변화</dt><dd>${esc(f.change)}</dd></dl></div>`).join("");
+    // 분야 표
+    const FC = C.fieldCount;
+    const tot = (ed) => sum(FIELDS.map((f) => FC[f][ed] || 0));
+    $("#cmp-ft").innerHTML = `<thead><tr><th>분야</th><th class="n">’23 국방기술</th>${CED.map((e) => `<th class="n">’${e.slice(2)} 과제</th>`).join("")}<th class="n">’26 비중</th><th class="n">’26 소요(미확보)</th></tr></thead><tbody>` +
+      FIELDS.map((f) => {
+        const ls = C.l1.filter((x) => x.field === f);
+        return `<tr class="click" data-f="${esc(f)}"><td class="pname fname">${esc(f)}</td><td class="n ref">${C.tech23[f]}</td>${CED.map((e, i) => `<td class="n">${FC[f][e]}${i ? dl(FC[f][CED[i - 1]], FC[f][e]) : ""}</td>`).join("")}
+          <td class="n">${fmt((FC[f]["2026"] / tot("2026")) * 100, 1)}%</td><td class="n">${fmt(sum(ls.map((x) => x.needs)))} (${fmt(sum(ls.map((x) => x.open)))})</td></tr>`;
+      }).join("") + `<tr><td class="pname">계</td><td class="n ref">322</td>${CED.map((e, i) => `<td class="n"><b>${tot(e)}</b>${i ? dl(tot(CED[i - 1]), tot(e)) : ""}</td>`).join("")}<td class="n">100%</td><td class="n">${fmt(D.needs.length)}</td></tr></tbody>`;
+    $("#cmp-ft").onclick = (ev) => { const r = ev.target.closest("[data-f]"); if (r) selectCmpField(r.dataset.f, true); };
+    // 증감률 열지도(발산형)
+    const xs = ["’24→’25", "’25→’26", "’24→’26"];
+    const pairs = [["2024", "2025"], ["2025", "2026"], ["2024", "2026"]];
+    const data = [];
+    let mx = 0;
+    FIELDS.forEach((f, yi) => pairs.forEach(([a, b], xi) => { const v = FC[f][a] ? ((FC[f][b] - FC[f][a]) / FC[f][a]) * 100 : 0; mx = Math.max(mx, Math.abs(v)); data.push([xi, yi, +v.toFixed(1), FC[f][b] - FC[f][a]]); }));
+    mx = Math.ceil(mx / 10) * 10;
+    const o = baseOpt(t);
+    const div = t.dark ? ["#d95926", "#7a3a20", "#2b3238", "#1f4f8a", "#3987e5"] : ["#eb6834", "#f6b89c", "#eef0f1", "#9ec5f4", "#2a78d6"];
+    o.grid = { left: 8, right: 10, top: 8, bottom: 44, containLabel: true };
+    o.xAxis = axisCat(t, xs, { position: "top", axisLabel: { color: t.ink2, fontSize: 12 } });
+    o.yAxis = axisCat(t, FIELDS, { inverse: true });
+    o.visualMap = { min: -mx, max: mx, orient: "horizontal", left: "center", bottom: 0, itemWidth: 10, itemHeight: 140, text: [`+${mx}%`, `−${mx}%`], textStyle: { color: t.muted, fontSize: 11 }, inRange: { color: div }, calculable: false };
+    o.tooltip.formatter = (p) => `${esc(FIELDS[p.value[1]])} · ${xs[p.value[0]]}<br><b>${p.value[2] > 0 ? "+" : ""}${p.value[2]}%</b> (${p.value[3] > 0 ? "+" : ""}${p.value[3]}건)`;
+    o.series = [{ type: "heatmap", data, itemStyle: { borderColor: t.surface, borderWidth: 2, borderRadius: 3 },
+      label: { show: true, fontFamily: t.mono, fontSize: 11, color: t.ink, formatter: (p) => `${p.value[2] > 0 ? "+" : ""}${fmt(p.value[2])}%` } }];
+    const hc = mk("c-cmp-delta", o);
+    if (hc) hc.on("click", (p) => selectCmpField(FIELDS[p.value[1]], true));
+    document.getElementById("c-cmp-delta").style.height = "380px"; if (hc) hc.resize();
+    multiples("c-cmp-sm", FIELDS, CED, (f) => [{ data: CED.map((e) => FC[f][e]), extra: { label: { show: true, position: "top", fontSize: 10, fontFamily: t.mono, color: t.ink2 } } }], { bar: true, unit: "건" });
+    $("#cmp-fields").innerHTML = FIELDS.map((f) => `<button class="chip" type="button" data-f="${esc(f)}" aria-pressed="${f === cmpField}">${esc(f)}</button>`).join("");
+    $("#cmp-fields").onclick = (ev) => { const b = ev.target.closest("[data-f]"); if (b) selectCmpField(b.dataset.f); };
+    drawCmpField();
+    $("#cmp-dups").innerHTML = `<thead><tr><th>세부기술 A</th><th>분야</th><th>세부기술 B</th><th>분야</th><th class="n">유사도</th></tr></thead><tbody>` +
+      C.dups.map((d) => `<tr><td>${esc(d.an)} <span class="tag code">${d.a}</span></td><td class="sub">${esc(d.af)}</td><td>${esc(d.bn)} <span class="tag code">${d.b}</span></td><td class="sub">${esc(d.bf)}</td><td class="n">${fmt(d.s * 100)}</td></tr>`).join("") + "</tbody>";
+  };
+  function selectCmpField(f, scroll) {
+    cmpField = f;
+    $$("#cmp-fields .chip").forEach((c) => c.setAttribute("aria-pressed", c.dataset.f === f));
+    drawCmpField();
+    if (scroll) $("#cmp-fields").scrollIntoView({ behavior: "smooth", block: "start" });
+  }
+  function drawCmpField() {
+    const C = D.cmp, f = cmpField, FC = C.fieldCount[f];
+    const ls = C.l1.filter((x) => x.field === f);
+    const fl = C.flows[f];
+    const progs = Object.keys(C.fieldProg["2026"]).filter((k) => k !== "총계");
+    const fi = FIELDS.indexOf(f);
+    const pv = (ed, k) => (C.fieldProg[ed][k] ? C.fieldProg[ed][k][fi] : null);
+    const nd = sum(ls.map((x) => x.needs)), op = sum(ls.map((x) => x.open));
+    const meth = {}; ls.forEach((x) => Object.entries(x.method || {}).forEach(([k, v]) => (meth[k] = (meth[k] || 0) + v)));
+    const per = {}; ls.forEach((x) => Object.entries(x.period || {}).forEach(([k, v]) => (per[k] = (per[k] || 0) + v)));
+    const l2all = ls.flatMap((x) => x.l2.map((r) => Object.assign({ l1: x }, r)));
+    const renamed = l2all.filter((r) => r.status === "명칭 변경"), added = l2all.filter((r) => r.status === "’26 신설"), removed = l2all.filter((r) => r.status === "’26 삭제·통합");
+    const gaps = l2all.filter((r) => r.id && !r.c24 && !r.c25 && r.needs > 0);
+    const dupsF = C.dups.filter((d) => d.af === f || d.bf === f);
+    const pname = (id) => (D.byId[id] ? D.byId[id].name : id);
+    const flowBox = (label, ids, cls) => `<details><summary><span>${label}</span><b class="${cls || ""}">${ids.length}</b></summary>${ids.length ? `<ul>${ids.map((id) => `<li><button class="lnk" type="button" data-open="${id}">${esc(pname(id))}</button></li>`).join("")}</ul>` : ""}</details>`;
+    const openR = nd ? op / nd : 0;
+    const mainMeth = Object.entries(meth).sort((a, b) => b[1] - a[1]);
+    const out = $("#cmp-detail");
+    out.innerHTML = `
+      <div class="kpis">
+        ${CED.map((e, i) => `<div class="kpi"><div class="v">${FC[e]}${i ? dl(FC[CED[i - 1]], FC[e]) : ""}</div><div class="l">’${e.slice(2)}판 과제 수</div><div class="s">기획서 분야별 현황</div></div>`).join("")}
+        <div class="kpi"><div class="v">${fmt(nd)}</div><div class="l">’26-’40 기술개발소요</div><div class="s">미확보 ${fmt(op)} (${fmt(openR * 100)}%)</div></div>
+        <div class="kpi"><div class="v">${ls.length} · ${l2all.filter((r) => r.id).length}</div><div class="l">국방전략기술 · 세부기술</div><div class="s">구성기술 ${fmt(sum(l2all.map((r) => r.l3)))}개</div></div>
+      </div>
+      <div class="grid-2">
+        <div class="panel"><h2>${esc(f)} · 사업유형 구성 변화</h2><p class="note">기획서 ‘국방전략기술 분야별 현황’ 표.</p><div class="tbl-wrap"><table><thead><tr><th>사업유형</th>${CED.map((e) => `<th class="n">’${e.slice(2)}</th>`).join("")}</tr></thead><tbody>
+          ${progs.filter((k) => CED.some((e) => pv(e, k))).map((k) => `<tr><td>${esc(k)}</td>${CED.map((e, i) => `<td class="n">${pv(e, k) == null ? '<span class="sub">–</span>' : pv(e, k)}${i && pv(CED[i - 1], k) != null && pv(e, k) != null ? dl(pv(CED[i - 1], k), pv(e, k)) : ""}</td>`).join("")}</tr>`).join("")}
+          <tr><td class="pname">계</td>${CED.map((e, i) => `<td class="n"><b>${FC[e]}</b>${i ? dl(FC[CED[i - 1]], FC[e]) : ""}</td>`).join("")}</tr></tbody></table></div></div>
+        <div class="panel"><h2>과제 흐름</h2><p class="note">’24·’25판은 로드맵의 과제-국방전략기술 연결, ’26판은 기획서 분야 표기 기준. 다른 분야에서 옮겨온 과제는 ‘이동’으로 구분.</p>
+          ${Object.entries(fl).map(([k, v]) => `<h3 style="margin-top:4px">${k.replace(/20(\d\d)/g, "’$1")}</h3><div class="flow">${flowBox("계속", v.cont)}${flowBox("신규 진입", v.new, "dlt up")}${flowBox("빠짐(종료·미수록)", v.out, "dlt dn")}${flowBox("다른 분야에서 이동", v.movedIn)}${flowBox("다른 분야로 이동", v.movedOut)}</div>`).join("")}
+        </div>
+      </div>
+      <div class="panel"><h2>국방전략기술별 비교</h2><p class="note">’24·’25 과제 수는 로드맵 연결(공식), ’26 과제 수는 텍스트 기반 추정. 소요는 ’26-’40 기술개발소요.</p>
+        <div class="tbl-wrap"><table><thead><tr><th>국방전략기술</th><th class="n">’24 과제</th><th class="n">’25 과제</th><th class="n">’26 과제*</th><th class="n">’26 소요</th><th class="n">미확보</th><th>단·중·장기</th><th>추진방안</th></tr></thead><tbody>
+        ${ls.map((x) => `<tr><td><span class="tag code">${x.id}</span> <span class="pname">${esc(x.name)}</span></td><td class="n">${x.c24}</td><td class="n">${x.c25}${dl(x.c24, x.c25)}</td><td class="n">${x.c26}${dl(x.c25, x.c26)}</td><td class="n">${x.needs}</td>
+          <td class="n">${x.open} <span class="sub">(${fmt(x.needs ? (x.open / x.needs) * 100 : 0)}%)</span></td><td class="sub">${["단기", "중기", "장기"].map((k) => `${k} ${(x.period || {})[k] || 0}`).join(" · ")}</td>
+          <td class="sub">${Object.entries(x.method || {}).sort((a, b) => b[1] - a[1]).map(([k, v]) => `${esc(k || "–")} ${v}`).join(" · ")}</td></tr>`).join("")}</tbody></table></div></div>
+      <div class="panel"><h2>세부기술 시계열 (’24 → ’25 → ’26)</h2><p class="note">’25 세부기술 명칭과 ’26 명칭을 대조했습니다. ’24·’25 과제 수는 로드맵 표의 세부기술 칸을 이름으로 맞춘 값이라 일부 오차가 있습니다. 주황 행은 소요는 있으나 ’24·’25 연계 과제가 없는 공백입니다.</p>
+        <div class="tbl-wrap"><table><thead><tr><th>국방전략기술</th><th>’25 세부기술</th><th>’26 세부기술</th><th>변경</th><th class="n">’24 과제</th><th class="n">’25 과제</th><th class="n">구성기술</th><th class="n">’26 소요(미확보)</th></tr></thead><tbody>
+        ${ls.map((x) => x.l2.map((r, i) => `<tr class="${r.id && !r.c24 && !r.c25 && r.needs > 0 ? "gap" : ""}">${i === 0 ? `<td rowspan="${x.l2.length}"><span class="tag code">${x.id}</span> ${esc(x.name)}</td>` : ""}
+          <td>${esc(r.name25 || "–")}</td><td class="pname">${esc(r.name || "–")}</td><td><span class="pill ${r.status === "동일" ? "good" : r.status === "명칭 변경" ? "info" : "warn"}">${esc(r.status)}</span></td>
+          <td class="n">${r.c24}</td><td class="n">${r.c25}</td><td class="n">${r.l3 || "–"}</td><td class="n">${r.needs ? `${r.needs} (${r.open})` : "–"}</td></tr>`).join("")).join("")}</tbody></table></div></div>
+      <div class="panel"><h2>${esc(f)} · 변경사항·중복성 점검</h2><p class="note">기준: 기술트리 원칙(상위 포괄·하위 무중복), 연도 간 명칭 일관성, 세부기술별 연계 과제 유무, 미확보(○) 비율. 데이터에서 자동 산출.</p>
+        <div class="checks">
+          <div class="ck"><h3><b>1</b> 변경 패턴</h3><ul>
+            <li>과제 수 ’24 ${FC["2024"]} → ’25 ${FC["2025"]} → ’26 ${FC["2026"]} (${FC["2026"] - FC["2024"] >= 0 ? "+" : ""}${FC["2026"] - FC["2024"]}건, 전체 비중 ${fmt((FC["2024"] / 400) * 100, 1)}% → ${fmt((FC["2026"] / 307) * 100, 1)}%)</li>
+            ${renamed.length ? `<li>명칭 변경 ${renamed.length}건: ${renamed.map((r) => `‘${esc(r.name25)}’→‘${esc(r.name)}’`).join(", ")}</li>` : "<li>세부기술 명칭 변경 없음</li>"}
+            ${added.length ? `<li>’26 신설: ${added.map((r) => esc(r.name)).join(", ")}</li>` : ""}${removed.length ? `<li>’26 삭제·통합: ${removed.map((r) => esc(r.name25)).join(", ")}</li>` : ""}
+            <li>과제 흐름 ’25→’26: 계속 ${fl["2025→2026"].cont.length} · 신규 ${fl["2025→2026"].new.length} · 빠짐 ${fl["2025→2026"].out.length}</li></ul></div>
+          <div class="ck"><h3><b>2</b> 중복 후보</h3>${dupsF.length ? `<ul>${dupsF.slice(0, 8).map((d) => `<li>${esc(d.an)} (${esc(d.af)}) ↔ ${esc(d.bn)} (${esc(d.bf)}) <span class="sub">· ${fmt(d.s * 100)}</span></li>`).join("")}</ul>` : '<p class="note">다른 분야와 이름이 겹치는 세부기술이 없습니다.</p>'}</div>
+          <div class="ck"><h3><b>3</b> 공백·편중</h3><ul>
+            ${gaps.length ? `<li>연계 과제 0건(’24·’25)인데 소요가 있는 세부기술 ${gaps.length}개: ${gaps.slice(0, 6).map((r) => `${esc(r.name)}(${r.needs})`).join(", ")}${gaps.length > 6 ? " 외" : ""}</li>` : "<li>모든 세부기술에 ’24·’25 연계 과제가 있습니다.</li>"}
+            <li>추진방안 구성: ${mainMeth.map(([k, v]) => `${esc(k || "–")} ${v}건(${fmt((v / Math.max(1, nd)) * 100)}%)`).join(", ")}</li>
+            <li>확보시기: 단기 ${per["단기"] || 0} · 중기 ${per["중기"] || 0} · 장기 ${per["장기"] || 0}</li></ul></div>
+          <div class="ck"><h3><b>4</b> 과제화 간극</h3><ul>
+            <li>미확보(○) 비율 ${fmt(openR * 100)}% — ${openR >= 0.85 ? "로드맵 대비 과제 포트폴리오 간극이 큽니다" : openR >= 0.7 ? "추가 과제화가 상당히 필요합니다" : "상대적으로 과제화가 진행된 분야입니다"}</li>
+            ${ls.slice().sort((a, b) => b.open / Math.max(1, b.needs) - a.open / Math.max(1, a.needs)).slice(0, 3).map((x) => `<li>${esc(x.name)}: 소요 ${x.needs} 중 미확보 ${x.open} (${fmt(x.needs ? (x.open / x.needs) * 100 : 0)}%), ’25 과제 ${x.c25}건</li>`).join("")}</ul></div>
+        </div></div>`;
+    out.onclick = (ev) => { const a = ev.target.closest("[data-open]"); if (a) openP(a.dataset.open); };
+  }
 
   /* ---------- 화면별 검색 ---------- */
   const qWords = (q) => normTxt(q).split(" ").filter(Boolean);

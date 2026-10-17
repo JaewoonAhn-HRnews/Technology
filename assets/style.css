@@ -234,3 +234,24 @@ label.btn { display: inline-block; }
 .sres li { margin-bottom: 3px; }
 .sres .lnk { cursor: pointer; color: var(--accent); text-decoration: underline; text-underline-offset: 2px; background: none; border: 0; padding: 0; font: inherit; text-align: left; }
 mark { background: var(--accent-soft); color: var(--ink); border-radius: 2px; padding: 0 1px; }
+
+.frame { display: grid; grid-template-columns: repeat(5, minmax(200px, 1fr)); gap: 0; overflow-x: auto; border: 1px solid var(--line); border-radius: var(--r); }
+.frame .col { padding: 12px 14px; border-right: 1px solid var(--line); display: grid; gap: 8px; align-content: start; background: var(--surface); }
+.frame .col:last-child { border-right: 0; background: var(--accent-soft); }
+.frame .hd { font-family: var(--font-mono); font-weight: 600; font-size: 15px; color: var(--accent); }
+.frame dt { font-size: 11px; color: var(--muted); letter-spacing: .04em; }
+.frame dd { margin: 0 0 4px; font-size: 13px; }
+.dlt { font-family: var(--font-mono); font-size: 11.5px; margin-left: 4px; }
+.dlt.up { color: var(--accent); } .dlt.dn { color: var(--warn); } .dlt.eq { color: var(--muted); }
+td.ref { color: var(--muted); }
+.checks { display: grid; grid-template-columns: repeat(2, minmax(0, 1fr)); gap: 12px; }
+.checks .ck { border: 1px solid var(--line); border-radius: var(--r); padding: 12px 14px; background: var(--surface); display: grid; gap: 6px; align-content: start; min-width: 0; }
+.checks .ck h3 { display: flex; gap: 8px; align-items: baseline; } .checks .ck h3 b { font-family: var(--font-mono); color: var(--accent); }
+.checks ul { margin: 0; padding-left: 18px; font-size: 13.5px; }
+.flow { display: grid; grid-template-columns: repeat(auto-fit, minmax(150px, 1fr)); gap: 10px; }
+.flow details { border: 1px solid var(--line); border-radius: var(--r); padding: 8px 12px; background: var(--surface); }
+.flow summary { cursor: pointer; display: flex; justify-content: space-between; gap: 6px; font-size: 13px; }
+.flow summary b { font-family: var(--font-mono); font-size: 16px; }
+.flow ul { margin: 6px 0 0; padding-left: 16px; font-size: 12.5px; max-height: 220px; overflow-y: auto; }
+tr.gap td { background: color-mix(in srgb, var(--warn) 8%, transparent); }
+@media (max-width: 860px) { .checks { grid-template-columns: 1fr; } }
