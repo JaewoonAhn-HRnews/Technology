@@ -28,6 +28,7 @@
       <a href="#onto" data-v="onto"><span class="k">07</span>기술 연계 온톨로지</a>
       <a href="#forecast" data-v="forecast"><span class="k">08</span>향후 방향</a>
       <a href="#about" data-v="about"><span class="k">09</span>자료·방법</a>
+      <a href="#db" data-v="db"><span class="k">10</span><span>데이터 관리<span id="nav-db-n" class="num"></span></span></a>
     </nav>
     <div class="rail-foot">
       <button class="theme-btn" id="themeBtn" type="button">화면 테마 전환</button>
@@ -185,6 +186,35 @@
           <div class="panel"><h2>사용 자료</h2><div class="tbl-wrap"><table id="src-tbl"></table></div></div>
           <div class="panel"><h2>처리 방법</h2><ul class="insights" id="method"></ul></div>
         </div>
+      </section>
+
+      <!-- 10 DB -->
+      <section class="view" id="v-db" hidden>
+        <div><div class="eyebrow">10 · Database</div><h1>데이터 관리</h1><p class="lede">과제·기술개발소요·민간기술·소재부품 데이터를 추가·수정·삭제하고, 우리 계획 과제를 등록해 중복도를 관리합니다. 변경은 먼저 이 브라우저에 임시 저장되고, ‘GitHub에 저장’을 누르면 저장소의 <span class="mono">data/db/</span> 파일로 커밋되어 모든 사용자에게 반영됩니다.</p></div>
+        <div class="panel">
+          <div class="sec-head"><div id="db-status"></div>
+            <div class="controls"><button class="btn ghost" type="button" id="db-export">DB 내보내기</button>
+              <label class="btn ghost" for="db-import" style="cursor:pointer">DB 가져오기</label><input id="db-import" type="file" accept="application/json,.json" hidden>
+              <button class="btn ghost" type="button" id="db-discard">변경 취소</button></div></div>
+          <details id="gh-box"><summary style="cursor:pointer;font-weight:600">GitHub 저장 설정</summary>
+            <div class="grid-3" style="margin-top:10px">
+              <div class="field"><label for="gh-owner">계정(Owner)</label><input id="gh-owner" type="text"></div>
+              <div class="field"><label for="gh-repo">저장소</label><input id="gh-repo" type="text"></div>
+              <div class="field"><label for="gh-branch">브랜치</label><input id="gh-branch" type="text"></div>
+              <div class="field"><label for="gh-dir">DB 폴더</label><input id="gh-dir" type="text"></div>
+              <div class="field span-2"><label for="gh-token">개인 액세스 토큰(Fine-grained, 이 저장소 Contents: Read and write)</label><input id="gh-token" type="password" autocomplete="off"></div>
+            </div>
+            <div class="controls" style="margin-top:8px"><label class="note" style="display:flex;gap:6px;align-items:center"><input id="gh-remember" type="checkbox"> 이 브라우저에 토큰 기억</label>
+              <button class="btn ghost" type="button" id="gh-test">연결 확인</button></div>
+            <p class="note">토큰은 이 브라우저에만 보관되며 GitHub API 외에는 전송되지 않습니다. 공용 PC에서는 ‘기억’을 끄세요.</p>
+          </details>
+          <div class="controls"><button class="btn" type="button" id="gh-save">GitHub에 저장</button><span class="note" id="gh-msg"></span></div>
+        </div>
+        <div class="chips" id="db-tabs"></div>
+        <div class="controls"><div class="field" style="flex:1 1 260px"><label for="db-q">검색</label><input id="db-q" type="search" placeholder="이름·개요·ID"></div><button class="btn" type="button" id="db-add">새 항목 추가</button></div>
+        <p class="note" id="db-note"></p>
+        <div class="pager" id="db-info"></div>
+        <div class="tbl-wrap"><table id="db-tbl"></table></div>
       </section>
     </div>
   </main>

@@ -170,15 +170,54 @@
     const names = ["projects", "stats", "taxonomy", "needs", "civil", "parts", "support", "global"];
     const res = await Promise.all(names.map((n) => fetch(`data/${n}.json`).then((r) => { if (!r.ok) throw new Error(n); return r.json(); })));
     names.forEach((n, i) => (D[n] = res[i]));
-    D.P = D.projects;
-    D.byId = Object.fromEntries(D.P.map((p) => [p.id, p]));
+    D.base = { projects: D.projects, needs: D.needs, civil: D.civil, parts: D.parts };
     D.cc = Object.fromEntries(D.stats.concepts.map((c) => [c.id, Object.assign({}, c, D.stats.trend[c.id] || {})]));
     D.L1 = Object.fromEntries(D.taxonomy.L1.map((x) => [x.id, x]));
     D.L2 = Object.fromEntries(D.taxonomy.L2.map((x) => [x.id, x]));
+    D.ccRx = D.stats.concepts.map((c) => [c.id, new RegExp(c.rx, "i")]);
+    await DBM.loadRemote();
+    DBM.loadDraft();
+    applyDB();
+  }
+  // 기본 데이터 + 저장소 DB(data/db) + 브라우저 임시 변경분을 합쳐 화면용 데이터를 만든다
+  function applyDB() {
+    const ov = DBM.effective();
+    const conceptsOf2 = (t) => D.ccRx.filter(([, rx]) => rx.test(t)).map(([id]) => id);
+    const merge = (col, idk) => {
+      const O = ov.overrides[col] || {};
+      const out = [];
+      D.base[col].forEach((x) => {
+        const id = String(x[idk]);
+        const o = O[id];
+        if (o && o._deleted) return;
+        if (!o) return out.push(x);
+        const y = Object.assign({}, x, o, { _edited: true });
+        out.push(y);
+      });
+      (ov.added[col] || []).forEach((x) => { const o = O[String(x[idk])]; if (o && o._deleted) return; out.push(Object.assign({ _added: true }, x, o || {})); });
+      return out;
+    };
+    D.P = merge("projects", "id");
+    D.P.forEach((p) => {
+      if (p._edited || p._added) {
+        p.aliases = p.aliases || []; p.eds = p.eds || []; p.hist = p.hist || []; p.sim = p.sim || []; p.needsRel = p.needsRel || [];
+        p.cc = conceptsOf2([p.name, p.aliases.join(" "), p.ov || "", p.items || ""].join(" "));
+        p.tfu = p.tfu || ""; p.stratPred = p.stratPred || [];
+      }
+    });
+    D.needs = merge("needs", "id");
+    D.civil = merge("civil", "id");
+    D.parts = merge("parts", "id");
+    D.needs.forEach((n) => { if (n._edited || n._added) { n.cc = conceptsOf2(n.name + " " + (n.spec || "")); n.field = (D.L1[n.l1] || {}).field || n.field || ""; } });
+    D.civil.forEach((c) => { if (c._edited || c._added) { c.keywords = c.keywords || []; c.cc = conceptsOf2(c.title + " " + (c.ov || "") + " " + c.keywords.join(" ")); } });
+    D.parts.forEach((x) => { if (x._edited || x._added) x.cc = conceptsOf2(x.name + " " + (x.system || "")); });
+    D.planned = ov.planned.filter((x) => !x._deleted);
+    D.byId = Object.fromEntries(D.P.map((p) => [p.id, p]));
+    D.needsById = Object.fromEntries(D.needs.map((n) => [n.id, n]));
     D.civilByP = {};
     D.civil.forEach((c) => (c.rel || []).forEach(([pid, s]) => { (D.civilByP[pid] = D.civilByP[pid] || []).push([c, s]); }));
     D.cur = D.P.filter((p) => p.current);
-    D.ccRx = D.stats.concepts.map((c) => [c.id, new RegExp(c.rx, "i")]);
+    SIM.ready = false;
   }
 
   /* ---------- routing ---------- */
@@ -415,7 +454,7 @@
     const dr = $("#drawer");
     const l1 = p.l1 && D.L1[p.l1];
     const sims = (p.sim || []).map(([pid, s]) => [D.byId[pid], s]).filter((x) => x[0]);
-    const needs = (p.needsRel || []).map(([k, s]) => [D.needs[k], s]).filter((x) => x[0]);
+    const needs = (p.needsRel || []).map(([k, s]) => [D.needsById[k], s]).filter((x) => x[0]);
     const civ = (D.civilByP[p.id] || []).sort((a, b) => b[1] - a[1]).slice(0, 4);
     dr.innerHTML = `<button class="close" type="button" id="dr-close">닫기</button>
       <div><div class="eyebrow">${p.id} · ${p.current ? "’26판 현행" : "종료 또는 미수록"}</div><h2 style="font-size:21px">${esc(p.name)}</h2>
@@ -501,13 +540,14 @@
     D.needs.forEach((n) => docs.push({ type: "기술개발소요", ref: n, title: n.name, full: n.name + " " + n.spec + " " + (n.l3n || "") }));
     D.civil.forEach((c) => docs.push({ type: "민간보유기술", ref: c, title: c.title, full: [c.title, c.ov, c.keywords.join(" ")].join(" ") }));
     D.parts.forEach((x) => docs.push({ type: "소재·부품", ref: x, title: x.name, full: x.name + " " + x.system }));
+    (D.planned || []).forEach((x) => docs.push({ type: "계획 과제", ref: x, title: x.name, full: [x.name, x.ov || "", x.items || ""].join(" ") }));
     SIM.docs = docs;
     SIM.title = buildIndex(docs.map((d) => d.title));
     SIM.full = buildIndex(docs.map((d) => d.full));
     SIM.ready = true;
   }
   const conceptsOf = (s) => D.ccRx.filter(([, rx]) => rx.test(s)).map(([id]) => id);
-  function check(title, ov, scope, k = 12) {
+  function check(title, ov, scope, k = 12, exclude) {
     ensureSim();
     const a = query(SIM.title, title), b = query(SIM.full, title + " " + title + " " + (ov || ""));
     const res = [];
@@ -515,6 +555,7 @@
       const d = SIM.docs[i];
       if (scope === "proj" && d.type !== "과제") continue;
       if (scope === "cur" && !(d.type === "과제" && d.ref.current)) continue;
+      if (exclude && d.ref === exclude) continue;
       const s = 0.45 * a[i] + 0.55 * b[i];
       if (s > 0.12) res.push([s, i]);
     }
@@ -544,6 +585,7 @@
     if (d.type === "과제") return { name: r.name, meta: `${r.domain || "–"} · ${r.stratField}${r.stratSrc === "추정" ? "*" : ""} · ${r.start || "–"}–${r.end || ""} · ${r.budget ? fmt(r.budget, 1) + "억" : "예산 –"} · ${r.current ? "’26판 현행" : "판 " + r.eds.map((e) => "’" + e.slice(2)).join(" ")}`, id: r.id, cc: r.cc };
     if (d.type === "기술개발소요") return { name: r.name, meta: `${D.L1[r.l1] ? D.L1[r.l1].id + " " + D.L1[r.l1].name : ""} · ${r.period} · ${r.method} · ${r.status === "●" ? "확보" : "미확보"}`, sub: r.spec, cc: r.cc };
     if (d.type === "민간보유기술") return { name: r.title, meta: `${r.weapon || ""} · ${r.strategic || ""} · 키워드 ${r.keywords.slice(0, 4).join(", ")}`, sub: r.ov.slice(0, 140) + (r.ov.length > 140 ? "…" : ""), cc: r.cc };
+    if (d.type === "계획 과제") return { name: r.name, meta: `우리 계획 과제 · ${r.status || ""} · ${r.dept || ""} · ${r.start || "–"}–${r.end || ""}`, sub: (r.ov || "").slice(0, 140), cc: conceptsOf(r.name + " " + (r.ov || "")) };
     return { name: r.name, meta: `${r.domain} · ${r.system} · ${r.start} 착수예상 · ${fmt(r.budget, 1)}억`, cc: r.cc };
   }
   function runDup() {
@@ -748,9 +790,390 @@
     $("#method").innerHTML = m.map(([k, v]) => `<li><span class="k">${k}</span><span>${esc(v)}</span></li>`).join("");
   };
 
+  /* ---------- 10 데이터 관리(DB) ---------- */
+  // 저장 구조: data/db/overrides.json(기존 레코드 수정·삭제), added.json(신규 레코드), planned.json(우리 계획 과제), changelog.json(변경 이력)
+  // 브라우저 임시 변경분은 localStorage(atlas-draft)에 보관했다가 GitHub에 커밋한다.
+  const DB_FILES = ["overrides", "added", "planned", "changelog"];
+  const emptyDB = () => ({ overrides: { projects: {}, needs: {}, civil: {}, parts: {} }, added: { projects: [], needs: [], civil: [], parts: [] }, planned: [], changelog: [] });
+  const lsGet = (k, d) => { try { const v = localStorage.getItem(k); return v ? JSON.parse(v) : d; } catch (e) { return d; } };
+  const lsSet = (k, v) => { try { if (v == null) localStorage.removeItem(k); else localStorage.setItem(k, JSON.stringify(v)); return true; } catch (e) { return false; } };
+  const DBM = {
+    remote: emptyDB(),
+    draft: null, // {overrides, added, planned|null, changelog}
+    async loadRemote() {
+      const r = emptyDB();
+      await Promise.all(DB_FILES.map((f) => fetch(`data/db/${f}.json`, { cache: "no-store" }).then((x) => (x.ok ? x.json() : null)).catch(() => null).then((j) => {
+        if (!j) return;
+        if (f === "overrides" || f === "added") Object.keys(r[f]).forEach((c) => { if (j[c]) r[f][c] = j[c]; });
+        else if (Array.isArray(j)) r[f] = j;
+      })));
+      this.remote = r;
+    },
+    loadDraft() { this.draft = lsGet("atlas-draft", null); },
+    saveDraft() { lsSet("atlas-draft", this.draft); },
+    ensureDraft() { if (!this.draft) this.draft = { overrides: { projects: {}, needs: {}, civil: {}, parts: {} }, added: { projects: [], needs: [], civil: [], parts: [] }, planned: null, changelog: [] }; return this.draft; },
+    pending() { const d = this.draft; return d ? d.changelog.length : 0; },
+    effective() {
+      const r = this.remote, d = this.draft;
+      const out = emptyDB();
+      Object.keys(out.overrides).forEach((c) => {
+        out.overrides[c] = Object.assign({}, r.overrides[c]);
+        if (d) Object.entries(d.overrides[c] || {}).forEach(([id, o]) => (out.overrides[c][id] = Object.assign({}, out.overrides[c][id] || {}, o)));
+        const m = new Map((r.added[c] || []).map((x) => [String(x.id), x]));
+        if (d) (d.added[c] || []).forEach((x) => m.set(String(x.id), x));
+        out.added[c] = Array.from(m.values());
+      });
+      out.planned = d && d.planned ? d.planned : r.planned.slice();
+      out.changelog = r.changelog.concat(d ? d.changelog : []);
+      return out;
+    },
+    log(col, id, action, name) { this.ensureDraft().changelog.push({ ts: new Date().toISOString(), col, id: String(id), action, name: name || "" }); },
+    clear() { this.draft = null; lsSet("atlas-draft", null); },
+  };
+
+  const SEL = (opts) => ({ type: "select", opts });
+  const SCHEMA = {
+    planned: {
+      label: "계획 과제", idk: "id", title: "name", prefix: "PL",
+      note: "우리가 기획 중인 과제를 등록하면 저장할 때마다 기존 과제·소요·민간기술과의 중복도를 자동 계산합니다.",
+      cols: [["name", "과제명"], ["status", "상태"], ["dept", "담당"], ["field", "국방전략기술"], ["dupMax", "최고 유사도"], ["updated", "수정일"]],
+      fields: [["name", "과제명", "text", 1], ["ov", "개요·연구내용", "textarea"], ["items", "연구항목·목표성능", "textarea"],
+        ["status", "상태", SEL(["구상", "기획", "제안", "선정", "진행", "종료", "보류"])], ["dept", "담당 부서·담당자", "text"],
+        ["domain", "무기체계 분야", SEL([""].concat(DOMS))], ["field", "국방전략기술 분야", SEL([""].concat(FIELDS))],
+        ["prog", "추진 사업", SEL(["", "핵심기술(응용)", "핵심기술(시험)", "미래도전국방기술", "무기체계 패키지형", "부품국산화", "민군기술협력", "국제공동", "자체 R&D", "기타"])],
+        ["start", "착수(예정)", "number"], ["end", "종료(예정)", "number"], ["budget", "예산(억원)", "number"], ["memo", "메모", "textarea"]],
+    },
+    projects: {
+      label: "국방기술과제", idk: "id", title: "name", prefix: "U",
+      note: "기획서에서 추출한 과제입니다. 분류·예산 오류를 고치거나 신규 판 과제를 직접 추가할 수 있습니다.",
+      cols: [["name", "과제명"], ["domain", "무기체계"], ["stratField", "국방전략기술"], ["start", "착수"], ["budget", "총사업비"], ["eds", "수록 판"]],
+      fields: [["name", "과제명", "text", 1], ["aliases", "이전 명칭(쉼표 구분)", "list"], ["ov", "개요", "textarea"], ["items", "연구항목", "textarea"],
+        ["domain", "무기체계 분야", SEL([""].concat(DOMS))], ["tf", "기술분야", SEL(["", "센서", "정보통신", "제어/전자", "탄약/에너지", "추진", "화생방", "소재", "플랫폼/구조", "센서 및 제어", "기계"])],
+        ["stratField", "국방전략기술 분야", SEL(FIELDS.concat(["해당없음"]))], ["l1", "국방전략기술(30)", "l1"], ["prog", "사업 유형", "text"], ["org", "주관", SEL(["", "국과연", "산학연", "정출연", "업체", "미정"])],
+        ["start", "착수", "number"], ["end", "종료", "number"], ["budget", "총사업비(억원)", "number"], ["eds", "수록 판(쉼표, 예: 2025,2026)", "list"], ["current", "’26판 현행", "check"]],
+    },
+    needs: {
+      label: "기술개발소요", idk: "id", title: "name", prefix: "N",
+      note: "’26~’40 국방기술기획서의 기술개발소요입니다.",
+      cols: [["name", "소요명"], ["l1", "국방전략기술"], ["period", "시기"], ["method", "추진방안"], ["status", "확보"]],
+      fields: [["name", "기술개발소요명", "text", 1], ["spec", "명세", "textarea"], ["l1", "국방전략기술(30)", "l1"], ["l3n", "구성기술", "text"],
+        ["period", "확보시기", SEL(["단기", "단/중기", "중기", "중/장기", "장기"])], ["method", "추진방안", SEL(["핵심기술", "미래도전", "핵심/미래", "민간기술"])], ["status", "확보여부", SEL(["○", "●"])]],
+    },
+    civil: {
+      label: "민간보유기술", idk: "id", title: "title", prefix: "C",
+      note: "국방활용가능 민간보유기술 조사 결과입니다.",
+      cols: [["title", "기술명"], ["weapon", "적용 무기체계"], ["strategic", "국방전략기술"]],
+      fields: [["title", "기술명", "text", 1], ["ov", "기술 개요", "textarea"], ["keywords", "키워드(쉼표)", "list"], ["weapon", "적용 무기체계", "text"], ["strategic", "국방전략기술 분야", SEL([""].concat(FIELDS))], ["strategicDetail", "세부 연계", "text"]],
+    },
+    parts: {
+      label: "소재·부품", idk: "id", title: "name", prefix: "M",
+      note: "무기체계 소재·부품 국산화 과제입니다.",
+      cols: [["id", "과제번호"], ["system", "적용 무기체계"], ["name", "과제명"], ["start", "착수"], ["budget", "지원금"]],
+      fields: [["id", "과제번호", "text"], ["name", "과제명", "text", 1], ["domain", "체계분야", "text"], ["system", "적용 무기체계", "text"], ["type", "사업유형", SEL(["핵심", "전략", "일반"])], ["start", "착수연도", "number"], ["months", "개발기간(월)", "number"], ["budget", "정부지원(억원)", "number"]],
+    },
+  };
+  let dbCol = "planned", dbQ = "", dbPage = 0;
+  const dbRows = (col) => (col === "planned" ? D.planned : col === "projects" ? D.P : D[col]);
+
+  function nextId(col) {
+    const sc = SCHEMA[col];
+    const all = dbRows(col).map((x) => String(x[sc.idk]));
+    let n = 1;
+    while (all.includes(`${sc.prefix}${String(n).padStart(4, "0")}`)) n++;
+    return `${sc.prefix}${String(n).padStart(4, "0")}`;
+  }
+
+  function dbStatus() {
+    const n = DBM.pending();
+    const el = $("#db-status");
+    if (!el) return;
+    el.innerHTML = n ? `<span class="pill warn">저장 안 된 변경 ${n}건</span> <span class="sub">이 브라우저에만 있습니다. GitHub에 저장해야 다른 사람에게 보입니다.</span>` : `<span class="pill good">저장소와 동기화됨</span> <span class="sub">변경 이력 ${fmt(DBM.remote.changelog.length)}건</span>`;
+    const b = $("#nav-db-n"); if (b) b.textContent = n ? ` · ${n}` : "";
+  }
+
+  RENDER.db = function () {
+    const tabs = Object.entries(SCHEMA).map(([k, v]) => `<button class="chip" type="button" data-c="${k}" aria-pressed="${k === dbCol}">${v.label} <span class="num sub">${fmt(dbRows(k).length)}</span></button>`).join("") +
+      `<button class="chip" type="button" data-c="log" aria-pressed="${dbCol === "log"}">변경 이력</button>`;
+    $("#db-tabs").innerHTML = tabs;
+    $("#db-tabs").onclick = (ev) => { const b = ev.target.closest("[data-c]"); if (!b) return; dbCol = b.dataset.c; dbPage = 0; RENDER.db(); };
+    $("#db-q").value = dbQ;
+    $("#db-q").oninput = () => { dbQ = $("#db-q").value; dbPage = 0; drawDB(); };
+    $("#db-add").onclick = () => openEditor(dbCol, null);
+    $("#db-add").hidden = dbCol === "log";
+    $("#db-export").onclick = exportDB;
+    $("#db-import").onchange = importDB;
+    $("#db-discard").onclick = () => {
+      const b = $("#db-discard");
+      if (b.dataset.armed) { DBM.clear(); applyDB(); rendered.clear(); rendered.add("db"); RENDER.db(); b.textContent = "변경 취소"; delete b.dataset.armed; toast("저장 안 된 변경을 모두 취소했습니다."); }
+      else { b.dataset.armed = "1"; b.textContent = "한 번 더 누르면 취소"; setTimeout(() => { if (b.dataset.armed) { delete b.dataset.armed; b.textContent = "변경 취소"; } }, 4000); }
+    };
+    ghForm();
+    dbStatus();
+    drawDB();
+  };
+
+  function cell(col, x, k) {
+    const v = x[k];
+    if (k === "dupMax") return v == null ? "–" : `<span class="pill ${v >= 0.5 ? "crit" : v >= 0.36 ? "warn" : "good"}">${fmt(v * 100)}</span>`;
+    if (k === "eds") return `<span class="tags">${(v || []).map((e) => `<span class="tag code">${String(e).slice(2)}</span>`).join("")}</span>`;
+    if (k === "budget") return v ? fmt(v, 1) : "–";
+    if (k === "l1") return v && D.L1[v] ? `${v} ${esc(D.L1[v].name)}` : "–";
+    if (k === "status" && col === "needs") return v === "●" ? "확보" : "미확보";
+    if (k === "updated") return v ? esc(v.slice(0, 10)) : "–";
+    if (k === "name" || k === "title") return `<span class="pname">${esc(v)}</span>${x._added ? ' <span class="tag">추가</span>' : x._edited ? ' <span class="tag">수정</span>' : ""}`;
+    return esc(v == null || v === "" ? "–" : v);
+  }
+
+  function drawDB() {
+    const out = $("#db-tbl");
+    if (dbCol === "log") {
+      const L = DBM.effective().changelog.slice().reverse();
+      $("#db-note").textContent = "저장소에 커밋된 이력과 이 브라우저의 미저장 변경을 함께 보여줍니다.";
+      out.innerHTML = `<thead><tr><th>일시</th><th>대상</th><th>ID</th><th>작업</th><th>이름</th></tr></thead><tbody>` +
+        (L.length ? L.map((e) => `<tr><td class="mono" style="font-size:12px">${esc(e.ts.replace("T", " ").slice(0, 16))}</td><td>${esc((SCHEMA[e.col] || {}).label || e.col)}</td><td class="mono">${esc(e.id)}</td><td>${esc(e.action)}</td><td>${esc(e.name)}</td></tr>`).join("") : `<tr><td colspan="5" class="sub">아직 변경 이력이 없습니다.</td></tr>`) + "</tbody>";
+      $("#db-info").textContent = "";
+      return;
+    }
+    const sc = SCHEMA[dbCol];
+    $("#db-note").textContent = sc.note;
+    const q = dbQ.trim().toLowerCase();
+    let rows = dbRows(dbCol).filter((x) => !q || JSON.stringify([x[sc.title], x.ov, x.spec, x.system, x[sc.idk]]).toLowerCase().includes(q));
+    if (dbCol === "planned") rows = rows.slice().sort((a, b) => (b.updated || "").localeCompare(a.updated || ""));
+    const P = 30, pages = Math.max(1, Math.ceil(rows.length / P));
+    dbPage = Math.min(dbPage, pages - 1);
+    const sl = rows.slice(dbPage * P, dbPage * P + P);
+    $("#db-info").innerHTML = `<span><b class="num">${fmt(rows.length)}</b>건</span><span>${dbPage + 1} / ${pages} 쪽 <button class="chip" type="button" id="db-prev">이전</button> <button class="chip" type="button" id="db-next">다음</button></span>`;
+    $("#db-prev").onclick = () => { if (dbPage > 0) { dbPage--; drawDB(); } };
+    $("#db-next").onclick = () => { if (dbPage < pages - 1) { dbPage++; drawDB(); } };
+    out.innerHTML = `<thead><tr><th class="mono">ID</th>${sc.cols.map(([k, l]) => `<th${["budget", "start", "dupMax"].includes(k) ? ' class="n"' : ""}>${l}</th>`).join("")}</tr></thead><tbody>` +
+      (sl.length ? sl.map((x) => `<tr class="click" data-id="${esc(x[sc.idk])}"><td class="mono" style="font-size:12px">${esc(x[sc.idk])}</td>${sc.cols.map(([k]) => `<td${["budget", "start", "dupMax"].includes(k) ? ' class="n"' : ""}>${cell(dbCol, x, k)}</td>`).join("")}</tr>`).join("")
+        : `<tr><td colspan="${sc.cols.length + 1}"><div style="padding:18px 4px"><b>${dbCol === "planned" ? "등록된 계획 과제가 없습니다." : "조건에 맞는 항목이 없습니다."}</b><div class="sub">${dbCol === "planned" ? "‘새 항목 추가’로 기획 중인 과제를 등록하면 기존 과제와의 중복도가 자동으로 계산됩니다." : "검색어를 바꿔 보세요."}</div></div></td></tr>`) + "</tbody>";
+    out.onclick = (ev) => { const tr = ev.target.closest("tr[data-id]"); if (tr) openEditor(dbCol, tr.dataset.id); };
+  }
+
+  function fieldInput(f, v) {
+    const [k, label, type, req] = f;
+    const id = `f-${k}`;
+    let inp;
+    if (type === "textarea") inp = `<textarea id="${id}" rows="4">${esc(v || "")}</textarea>`;
+    else if (type === "number") inp = `<input id="${id}" type="number" step="any" value="${v == null ? "" : esc(v)}">`;
+    else if (type === "check") inp = `<label style="display:flex;gap:6px;align-items:center;color:var(--ink)"><input id="${id}" type="checkbox"${v ? " checked" : ""}> 예</label>`;
+    else if (type === "list") inp = `<input id="${id}" type="text" value="${esc((v || []).join(", "))}">`;
+    else if (type === "l1") inp = `<select id="${id}"><option value="">–</option>${D.taxonomy.L1.map((x) => `<option value="${x.id}"${x.id === v ? " selected" : ""}>${x.id} ${esc(x.name)} (${esc(x.field)})</option>`).join("")}</select>`;
+    else if (type && type.type === "select") { const opts = type.opts.includes(v) || v == null || v === "" ? type.opts : type.opts.concat([v]); inp = `<select id="${id}">${opts.map((o) => `<option value="${esc(o)}"${o === v ? " selected" : ""}>${esc(o || "–")}</option>`).join("")}</select>`; }
+    else inp = `<input id="${id}" type="text" value="${esc(v == null ? "" : v)}"${req ? " required" : ""}>`;
+    const wide = type === "textarea" || req;
+    return `<div class="field${wide ? " span-2" : ""}"><label for="${id}">${label}${req ? " *" : ""}</label>${inp}</div>`;
+  }
+
+  function openEditor(col, id) {
+    const sc = SCHEMA[col];
+    const x = id == null ? null : dbRows(col).find((r) => String(r[sc.idk]) === String(id));
+    const dr = $("#drawer");
+    const isNew = !x;
+    const dupBlock = col === "planned" && x && x.dupTop ? `<div><h3>중복 점검 결과 <span class="sub">(${esc((x.dupAt || "").slice(0, 10))})</span></h3><div class="results">${x.dupTop.map((d) => `<div class="res"${d.pid ? ` data-open="${d.pid}" style="cursor:pointer"` : ""}><div class="score">${fmt(d.s * 100)}<small>${d.s >= 0.5 ? "중복 의심" : d.s >= 0.36 ? "유사" : "관련"}</small></div><div class="body"><div><span class="tag">${esc(d.type)}</span> <span class="pname">${esc(d.name)}</span></div><div class="sub">${esc(d.meta || "")}</div></div></div>`).join("")}</div></div>` : "";
+    dr.innerHTML = `<button class="close" type="button" id="dr-close">닫기</button>
+      <div><div class="eyebrow">${esc(sc.label)} · ${isNew ? "새 항목" : esc(id)}</div><h2 style="font-size:20px">${isNew ? "새 항목 추가" : esc(x[sc.title])}</h2>
+      ${x && (x._edited || x._added) ? '<p class="note">수정 또는 추가된 항목입니다.</p>' : ""}</div>
+      <form id="db-form" class="grid-2" novalidate>${sc.fields.filter((f) => !(f[0] === sc.idk && !isNew && col === "parts")).map((f) => fieldInput(f, x ? x[f[0]] : (f[0] === "status" && col === "planned" ? "구상" : undefined))).join("")}
+        <div class="controls span-2"><button class="btn" type="submit">${col === "planned" ? "저장하고 중복 점검" : "저장"}</button>${isNew ? "" : '<button class="btn ghost" type="button" id="db-del">삭제</button>'}<span class="note" id="db-msg"></span></div>
+      </form>${dupBlock}`;
+    dr.hidden = false; $("#scrim").hidden = false; dr.scrollTop = 0;
+    $("#dr-close").onclick = closeP;
+    dr.onclick = (ev) => { const r = ev.target.closest("[data-open]"); if (r) openP(r.dataset.open); };
+    $("#db-form").onsubmit = (ev) => {
+      ev.preventDefault();
+      const rec = {};
+      sc.fields.forEach(([k, , type]) => {
+        const el = document.getElementById("f-" + k);
+        if (!el) return;
+        let v = type === "check" ? el.checked : el.value.trim();
+        if (type === "number") v = v === "" ? null : Number(v);
+        if (type === "list") v = v ? v.split(",").map((s) => s.trim()).filter(Boolean) : [];
+        rec[k] = v;
+      });
+      if (!rec[sc.title]) { $("#db-msg").textContent = "필수 항목(*)을 입력하세요."; return; }
+      saveRecord(col, x, rec);
+    };
+    const del = $("#db-del");
+    if (del) del.onclick = () => {
+      if (!del.dataset.armed) { del.dataset.armed = "1"; del.textContent = "한 번 더 누르면 삭제"; del.style.color = "var(--crit)"; del.style.borderColor = "var(--crit)"; return; }
+      deleteRecord(col, x);
+    };
+    const first = dr.querySelector("input,textarea,select"); if (first) first.focus();
+  }
+
+  function plannedDup(rec) {
+    SIM.ready = false;
+    const r = check(rec.name, [rec.ov, rec.items].join(" "), "all", 6, rec);
+    rec.dupTop = r.map((h) => { const L = docLine(h.d); return { s: +h.s.toFixed(3), type: h.d.type, name: L.name, meta: L.meta, pid: L.id || null }; });
+    rec.dupMax = r.length ? +r[0].s.toFixed(3) : 0;
+    rec.dupAt = new Date().toISOString();
+  }
+
+  function saveRecord(col, x, rec) {
+    const sc = SCHEMA[col];
+    const d = DBM.ensureDraft();
+    const now = new Date().toISOString();
+    if (col === "planned") {
+      const list = (d.planned || DBM.remote.planned).map((p) => Object.assign({}, p));
+      let item;
+      if (x) { item = list.find((p) => p.id === x.id); Object.assign(item, rec, { updated: now }); }
+      else { item = Object.assign({ id: nextId("planned"), created: now, updated: now }, rec); list.push(item); }
+      d.planned = list;
+      D.planned = list.filter((p) => !p._deleted);
+      plannedDup(item);
+      DBM.log(col, item.id, x ? "수정" : "추가", item.name);
+      DBM.saveDraft(); applyDB(); afterChange(); openEditor(col, item.id);
+      toast(`저장했습니다. 최고 유사도 ${fmt(item.dupMax * 100)}.`);
+      return;
+    }
+    if (col === "projects" && rec.stratField && (!x || rec.stratField !== x.stratField)) rec.stratSrc = "수정";
+    if (x && !x._added) {
+      const id = String(x[sc.idk]);
+      const base = D.base[col].find((b) => String(b[sc.idk]) === id) || {};
+      const diff = {};
+      const nz = (v) => (v == null || v === "" || (Array.isArray(v) && !v.length) ? null : v);
+      Object.entries(rec).forEach(([k, v]) => { if (JSON.stringify(nz(v)) !== JSON.stringify(nz(base[k]))) diff[k] = v; });
+      if (rec.stratSrc) diff.stratSrc = rec.stratSrc;
+      d.overrides[col][id] = Object.assign({}, (DBM.remote.overrides[col] || {})[id] || {}, d.overrides[col][id] || {}, diff);
+      DBM.log(col, id, "수정", rec[sc.title]);
+    } else {
+      const id = x ? String(x[sc.idk]) : (col === "parts" && rec.id ? rec.id : nextId(col));
+      const prev = x ? Object.assign({}, x) : {};
+      ["_added", "_edited"].forEach((k) => delete prev[k]);
+      const item = Object.assign(prev, rec, { [sc.idk]: id });
+      if (col === "projects") Object.assign(item, { hist: item.hist || [], sim: item.sim || [], needsRel: item.needsRel || [], stratSrc: item.stratSrc || "수정", prog: item.prog || "기타/미분류" });
+      d.added[col] = (d.added[col] || []).filter((a) => String(a[sc.idk]) !== id).concat([item]);
+      DBM.log(col, id, x ? "수정" : "추가", rec[sc.title]);
+    }
+    DBM.saveDraft(); applyDB(); afterChange(); closeP();
+    toast("저장했습니다. GitHub에 저장하면 공유됩니다.");
+  }
+
+  function deleteRecord(col, x) {
+    const sc = SCHEMA[col];
+    const d = DBM.ensureDraft();
+    const id = String(x[sc.idk]);
+    if (col === "planned") {
+      d.planned = (d.planned || DBM.remote.planned).filter((p) => p.id !== id);
+    } else if (x._added) {
+      d.added[col] = (d.added[col] || []).filter((a) => String(a[sc.idk]) !== id);
+      d.overrides[col][id] = { _deleted: true };
+    } else d.overrides[col][id] = { _deleted: true };
+    DBM.log(col, id, "삭제", x[sc.title]);
+    DBM.saveDraft(); applyDB(); afterChange(); closeP();
+    toast("삭제했습니다.");
+  }
+
+  function afterChange() {
+    const keep = current;
+    rendered.clear();
+    rendered.add(keep);
+    if (keep === "db") RENDER.db();
+    dbStatus();
+  }
+
+  function snapshot() {
+    const e = DBM.effective();
+    return { overrides: e.overrides, added: e.added, planned: e.planned, changelog: e.changelog };
+  }
+  function downloadText(name, text) {
+    const a = document.createElement("a");
+    a.href = URL.createObjectURL(new Blob([text], { type: "application/json" })); a.download = name;
+    document.body.appendChild(a); a.click(); a.remove();
+  }
+  function exportDB() {
+    downloadText(`atlas-db-${new Date().toISOString().slice(0, 10)}.json`, JSON.stringify(snapshot(), null, 1));
+    toast("DB 파일을 내려받았습니다. 내려받기가 막힌 환경이면 GitHub 저장을 이용하세요.");
+  }
+  function importDB(ev) {
+    const f = ev.target.files && ev.target.files[0];
+    if (!f) return;
+    const rd = new FileReader();
+    rd.onload = () => {
+      try {
+        const j = JSON.parse(rd.result);
+        if (!j.overrides || !j.added) throw new Error("형식");
+        DBM.draft = { overrides: j.overrides, added: j.added, planned: j.planned || [], changelog: (j.changelog || []).filter((e) => !DBM.remote.changelog.some((r) => r.ts === e.ts && r.id === e.id)) };
+        if (!DBM.draft.changelog.length) DBM.draft.changelog.push({ ts: new Date().toISOString(), col: "all", id: "-", action: "가져오기", name: f.name });
+        DBM.saveDraft(); applyDB(); afterChange();
+        toast("가져온 DB를 적용했습니다. 확인 후 GitHub에 저장하세요.");
+      } catch (e) { toast("가져오지 못했습니다. ‘DB 내보내기’로 만든 JSON 파일인지 확인하세요."); }
+      ev.target.value = "";
+    };
+    rd.readAsText(f, "utf-8");
+  }
+
+  /* GitHub 저장 */
+  const GH_DEF = { owner: "JaewoonAhn-HRnews", repo: "Technology", branch: "main", dir: "data/db" };
+  function ghCfg() { return Object.assign({}, GH_DEF, lsGet("atlas-gh", {}), { token: (() => { try { return sessionStorage.getItem("atlas-gh-token") || lsGet("atlas-gh-token", ""); } catch (e) { return ""; } })() }); }
+  function ghForm() {
+    const c = ghCfg();
+    ["owner", "repo", "branch", "dir", "token"].forEach((k) => { const el = $("#gh-" + k); if (el) el.value = c[k] || ""; });
+    $("#gh-remember").checked = !!lsGet("atlas-gh-token", "");
+    $("#gh-save").onclick = ghCommit;
+    $("#gh-test").onclick = ghTest;
+  }
+  function ghRead() {
+    const c = {}; ["owner", "repo", "branch", "dir", "token"].forEach((k) => (c[k] = $("#gh-" + k).value.trim()));
+    lsSet("atlas-gh", { owner: c.owner, repo: c.repo, branch: c.branch, dir: c.dir });
+    try { sessionStorage.setItem("atlas-gh-token", c.token); } catch (e) {}
+    lsSet("atlas-gh-token", $("#gh-remember").checked ? c.token : null);
+    return c;
+  }
+  async function gh(c, path, opt = {}) {
+    const r = await fetch(`https://api.github.com/repos/${c.owner}/${c.repo}/${path}`, Object.assign({ headers: { Authorization: `Bearer ${c.token}`, Accept: "application/vnd.github+json", "X-GitHub-Api-Version": "2022-11-28", "Content-Type": "application/json" } }, opt));
+    return r;
+  }
+  async function ghTest() {
+    const c = ghRead(), m = $("#gh-msg");
+    if (!c.token) { m.textContent = "토큰을 입력하세요."; return; }
+    m.textContent = "확인 중…";
+    try {
+      const r = await gh(c, "");
+      if (!r.ok) { m.textContent = r.status === 401 ? "토큰이 올바르지 않습니다." : r.status === 404 ? "저장소를 찾을 수 없거나 토큰 권한이 없습니다." : `오류 ${r.status}`; return; }
+      const j = await r.json();
+      m.textContent = j.permissions && j.permissions.push ? `연결됨: ${j.full_name} (쓰기 가능)` : `연결됨: ${j.full_name} — 쓰기 권한이 없습니다. 토큰에 Contents: Read and write 권한을 주세요.`;
+    } catch (e) { m.textContent = "GitHub에 연결하지 못했습니다. 이 화면이 GitHub Pages에서 열려 있는지 확인하세요."; }
+  }
+  const b64 = (str) => { const bytes = new TextEncoder().encode(str); let bin = ""; for (let i = 0; i < bytes.length; i += 0x8000) bin += String.fromCharCode.apply(null, bytes.subarray(i, i + 0x8000)); return btoa(bin); };
+  async function ghCommit() {
+    const c = ghRead(), m = $("#gh-msg");
+    if (!c.token) { m.textContent = "토큰을 입력하세요."; return; }
+    if (!DBM.pending()) { m.textContent = "저장할 변경이 없습니다."; return; }
+    const snap = snapshot();
+    const n = DBM.pending();
+    m.textContent = "저장 중…";
+    try {
+      for (const f of DB_FILES) {
+        const path = `${c.dir}/${f}.json`;
+        const g = await gh(c, `contents/${path}?ref=${encodeURIComponent(c.branch)}`);
+        const sha = g.ok ? (await g.json()).sha : undefined;
+        const body = { message: `DB 갱신: ${f} (${n}건 변경, 국방기술 아틀라스)`, content: b64(JSON.stringify(snap[f], null, 1)), branch: c.branch };
+        if (sha) body.sha = sha;
+        const p = await gh(c, `contents/${path}`, { method: "PUT", body: JSON.stringify(body) });
+        if (!p.ok) { const t = await p.json().catch(() => ({})); throw new Error(`${f}: ${p.status} ${t.message || ""}`); }
+      }
+      DBM.remote = { overrides: snap.overrides, added: snap.added, planned: snap.planned, changelog: snap.changelog };
+      DBM.clear(); applyDB(); afterChange();
+      m.textContent = `GitHub에 ${n}건을 저장했습니다. 사이트 반영까지 1~2분 걸릴 수 있습니다.`;
+    } catch (e) {
+      m.textContent = `저장하지 못했습니다(${e.message}). 토큰 권한과 브랜치 이름을 확인하세요. 변경 내용은 이 브라우저에 그대로 남아 있습니다.`;
+    }
+  }
+
+  function toast(msg) {
+    let t = $("#toast");
+    if (!t) { t = document.createElement("div"); t.id = "toast"; t.setAttribute("role", "status"); document.body.appendChild(t); }
+    t.textContent = msg; t.hidden = false;
+    clearTimeout(t._h); t._h = setTimeout(() => (t.hidden = true), 3800);
+  }
+
   /* ---------- boot ---------- */
   load().then(() => {
     $("#boot").hidden = true;
+    dbStatus();
     show(location.hash.slice(1) || "overview");
   }).catch((e) => {
     $("#boot").textContent = "데이터 파일을 불러오지 못했습니다(" + e.message + "). data 폴더가 index.html과 같은 위치에 있는지 확인하세요.";
