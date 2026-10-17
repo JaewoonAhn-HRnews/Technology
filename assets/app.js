@@ -790,6 +790,220 @@
     $("#method").innerHTML = m.map(([k, v]) => `<li><span class="k">${k}</span><span>${esc(v)}</span></li>`).join("");
   };
 
+  /* ---------- 화면별 검색 ---------- */
+  const qWords = (q) => normTxt(q).split(" ").filter(Boolean);
+  const hasAll = (text, ws) => { const t = normTxt(text); return ws.length > 0 && ws.every((w) => t.includes(w)); };
+  const hasAny = (text, ws) => { const t = normTxt(text); return ws.some((w) => w.length >= 2 && t.includes(w)); };
+  function hl(s, ws) {
+    let h = esc(s);
+    ws.filter((w) => w.length >= 1).sort((a, b) => b.length - a.length).forEach((w) => {
+      const rx = new RegExp(w.replace(/[.*+?^${}()|[\]\\]/g, "\\$&"), "gi");
+      h = h.replace(rx, (m) => `<mark>${m}</mark>`);
+    });
+    return h;
+  }
+  const projText = (p) => [p.name, (p.aliases || []).join(" "), p.ov || "", p.items || ""].join(" ");
+  function matchProjects(q) {
+    const ws = qWords(q);
+    if (!ws.length) return [];
+    // 1순위: 모든 단어 포함, 2순위: 텍스트에서 같은 기술개념이 잡히는 과제
+    const strict = D.P.filter((p) => hasAll(projText(p), ws));
+    if (strict.length >= 3) return strict;
+    const qcc = conceptsOf(q);
+    if (!qcc.length) return strict;
+    const extra = D.P.filter((p) => !strict.includes(p) && qcc.every((c) => (p.cc || []).includes(c)));
+    return strict.concat(extra);
+  }
+  function matchConcepts(q) {
+    const ws = qWords(q);
+    const byName = Object.values(D.cc).filter((c) => ws.length && ws.some((w) => normTxt(c.name).includes(w)));
+    const byRx = conceptsOf(q).map((id) => D.cc[id]);
+    return Array.from(new Set(byName.concat(byRx))).sort((a, b) => (b.nProj || 0) - (a.nProj || 0));
+  }
+  function matchTaxo(q) {
+    const ws = qWords(q);
+    if (!ws.length) return [];
+    const idq = q.trim().toUpperCase();
+    const out = [];
+    D.taxonomy.L1.forEach((x) => { if (x.id === idq || hasAll(x.name, ws)) out.push({ lv: "국방전략기술", id: x.id, name: x.name, sub: x.field, l1: x.id }); });
+    D.taxonomy.L2.forEach((x) => { if (x.id === idq || hasAll(x.name, ws)) out.push({ lv: "세부기술", id: x.id, name: x.name, sub: (D.L1[x.l1] || {}).name, l1: x.l1, l2: x.id }); });
+    D.taxonomy.L3.forEach((x) => { if (hasAll(x.name, ws)) { const l2 = D.L2[x.l2] || {}; out.push({ lv: "구성기술", id: x.id, name: x.name, sub: l2.name, l1: l2.l1, l2: x.l2 }); } });
+    return out;
+  }
+  function bindSearch(id, fn) {
+    const inp = $("#" + id);
+    if (!inp) return;
+    const go = () => fn(inp.value.trim());
+    $("#" + id + "-go").onclick = go;
+    inp.onkeydown = (e) => { if (e.key === "Enter") go(); };
+    $("#" + id + "-clr").onclick = () => { inp.value = ""; $("#" + id + "-out").innerHTML = ""; fn(""); };
+    if (inp.value.trim()) go();
+  }
+  function projList(ps, ws, n = 10) {
+    const sorted = ps.slice().sort((a, b) => (b.current - a.current) || ((b.start || 0) - (a.start || 0)));
+    return `<ul>${sorted.slice(0, n).map((p) => `<li><button class="lnk" type="button" data-open="${p.id}">${hl(p.name, ws)}</button> <span class="sub">· ${esc(p.domain || "–")} · ${p.start || "–"}–${p.end || ""}${p.budget ? ` · ${fmt(p.budget, 1)}억` : ""}${p.current ? " · 현행" : ""}</span></li>`).join("")}</ul>${ps.length > n ? `<button class="lnk" type="button" data-allp="1">과제 현황에서 ${fmt(ps.length)}건 모두 보기</button>` : ""}`;
+  }
+  const countBy = (arr, f) => { const o = {}; arr.forEach((x) => { const k = f(x) || "–"; o[k] = (o[k] || 0) + 1; }); return Object.entries(o).sort((a, b) => b[1] - a[1]); };
+  const chipsOf = (pairs) => `<div class="tags">${pairs.map(([k, v]) => `<span class="tag">${esc(k)} ${fmt(v)}</span>`).join("")}</div>`;
+  function wireOut(out, q) {
+    out.onclick = (ev) => {
+      const a = ev.target.closest("[data-open]"); if (a) return openP(a.dataset.open);
+      if (ev.target.closest("[data-allp]")) { PF.q = q; PF.scope = "all"; PF.dom = ""; PF.str = ""; PF.prog = ""; PF.page = 0; const el = $("#p-q"); if (el) el.value = q; location.hash = "#projects"; return; }
+      const c = ev.target.closest("[data-gocc]"); if (c) { ONTO_PENDING = { cc: c.dataset.gocc }; location.hash = "#onto"; return; }
+      const t = ev.target.closest("[data-gol1]"); if (t) { ONTO_PENDING = { l1: t.dataset.gol1, l2: t.dataset.gol2 || null }; location.hash = "#onto"; }
+    };
+  }
+  const empty = (q) => `<p class="note">‘${esc(q)}’에 해당하는 항목이 없습니다. 다른 표현(예: 약어 대신 한글명, 띄어쓰기 변경)으로 검색해 보세요.</p>`;
+
+  // 기술별
+  function techSearch(q) {
+    const out = $("#s-tech-out");
+    if (!q) return;
+    const ws = qWords(q);
+    const ccs = matchConcepts(q).slice(0, 12), tx = matchTaxo(q).slice(0, 14);
+    const ps = matchProjects(q);
+    const ns = D.needs.filter((n) => hasAll(n.name + " " + n.spec + " " + (n.l3n || ""), ws));
+    const cv = D.civil.filter((c) => hasAll(c.title + " " + c.ov + " " + c.keywords.join(" "), ws));
+    if (!ccs.length && !tx.length && !ps.length && !ns.length && !cv.length) { out.innerHTML = empty(q); return; }
+    const yrs = []; for (let y = 2014; y <= 2030; y++) yrs.push(y);
+    const st = {}; ps.forEach((p) => { if (p.start) st[p.start] = (st[p.start] || 0) + 1; });
+    const per = countBy(ns, (n) => n.period);
+    out.innerHTML = `<div class="sgrid">
+      <div class="sbox"><h3>관련 과제 <span>${fmt(ps.length)}건 · 현행 ${fmt(ps.filter((p) => p.current).length)} · ${fmt(sum(ps.map((p) => p.budget)))}억</span></h3>
+        ${ps.length ? `<div>${sparkSVG(yrs.map((y) => st[y] || 0), 260, 34)}<div class="sub">착수연도별 ’14→’30</div></div>${chipsOf(countBy(ps, (p) => p.stratField).slice(0, 5))}${projList(ps, ws, 8)}` : '<p class="note">없음</p>'}</div>
+      <div class="sbox"><h3>기술개발소요 (’26~’40) <span>${fmt(ns.length)}건 · 미확보 ${fmt(ns.filter((n) => n.status === "○").length)}</span></h3>
+        ${ns.length ? `${chipsOf(per)}<ul>${ns.slice(0, 8).map((n) => `<li>${hl(n.name, ws)} <span class="sub">· ${esc((D.L1[n.l1] || {}).name || "")} · ${esc(n.period)} · ${n.status === "●" ? "확보" : "미확보"}</span></li>`).join("")}</ul>` : '<p class="note">없음</p>'}</div>
+      <div class="sbox"><h3>기술개념 · 국방전략기술 <span>${ccs.length + tx.length}</span></h3>
+        ${ccs.length ? `<div class="tags">${ccs.map((c) => `<button class="chip" type="button" data-gocc="${c.id}">${esc(c.name)} · ${fmt(c.nProj)} · ×${fmt(c.momentum, 1)}</button>`).join("")}</div>` : ""}
+        ${tx.length ? `<ul>${tx.map((t) => `<li><button class="lnk" type="button" data-gol1="${t.l1}"${t.l2 ? ` data-gol2="${t.l2}"` : ""}>${hl(t.name, ws)}</button> <span class="sub">· ${t.lv} ${esc(t.id)} · ${esc(t.sub || "")}</span></li>`).join("")}</ul>` : ""}
+        ${!ccs.length && !tx.length ? '<p class="note">없음</p>' : '<p class="note">누르면 온톨로지에서 연결 관계를 봅니다.</p>'}</div>
+      ${cv.length ? `<div class="sbox"><h3>민간보유기술 <span>${fmt(cv.length)}건</span></h3><ul>${cv.slice(0, 6).map((c) => `<li>${hl(c.title, ws)} <span class="sub">· ${esc(c.weapon || "")}</span></li>`).join("")}</ul></div>` : ""}
+    </div>`;
+    wireOut(out, q);
+  }
+
+  // 체계별
+  function sysSearch(q) {
+    const out = $("#s-sys-out");
+    const pq = $("#parts-q");
+    if (!q) { if (pq) { pq.value = ""; pq.dispatchEvent(new Event("input")); } return; }
+    const ws = qWords(q);
+    const ps = matchProjects(q);
+    const pt = D.parts.filter((x) => hasAll(x.system + " " + x.name + " " + x.domain, ws));
+    const lv = D.stats.levels.korea.filter((k) => hasAny(k[0] + " " + k[7], ws) || ws.some((w) => normTxt(k[0]).includes(w) || w.includes(normTxt(k[0]))));
+    const cv = D.civil.filter((c) => hasAll(c.weapon + " " + c.title + " " + c.ov, ws));
+    const plan = (D.planned || []).filter((x) => hasAll([x.name, x.ov || "", x.domain || ""].join(" "), ws));
+    if (!ps.length && !pt.length && !lv.length && !cv.length && !plan.length) { out.innerHTML = empty(q); return; }
+    if (pq && pt.length) { pq.value = q; pq.dispatchEvent(new Event("input")); }
+    out.innerHTML = `<div class="sgrid">
+      <div class="sbox"><h3>국방기술과제 <span>${fmt(ps.length)}건 · ${fmt(sum(ps.map((p) => p.budget)))}억</span></h3>
+        ${ps.length ? `${chipsOf(countBy(ps, (p) => p.domain).slice(0, 6))}${chipsOf(countBy(ps, (p) => p.stratField).slice(0, 5))}${projList(ps, ws, 8)}` : '<p class="note">없음</p>'}</div>
+      <div class="sbox"><h3>소재·부품 국산화 <span>${fmt(pt.length)}건 · ${fmt(sum(pt.map((x) => x.budget)), 1)}억</span></h3>
+        ${pt.length ? `<ul>${pt.slice(0, 10).map((x) => `<li>${hl(x.name, ws)} <span class="sub">· ${hl(x.system, ws)} · ${x.start} 착수</span></li>`).join("")}</ul>${pt.length > 10 ? '<p class="note">아래 표에 전체 목록을 걸러 두었습니다.</p>' : ""}` : '<p class="note">없음</p>'}</div>
+      <div class="sbox"><h3>한국 기술수준 <span>${lv.length}개 체계</span></h3>
+        ${lv.length ? `<ul>${lv.map((k) => `<li><b>${esc(k[0])}</b> <span class="sub">(${esc(k[7])})</span> ${k[1]}% → ${k[3]}% → <b>${k[5]}%</b> · ${k[6]}위</li>`).join("")}</ul>` : '<p class="note">조사 대상 26개 무기체계 중 해당 없음</p>'}
+        ${cv.length ? `<h3 style="margin-top:6px">민간보유기술 <span>${cv.length}건</span></h3><ul>${cv.slice(0, 5).map((c) => `<li>${hl(c.title, ws)}</li>`).join("")}</ul>` : ""}
+        ${plan.length ? `<h3 style="margin-top:6px">우리 계획 과제 <span>${plan.length}건</span></h3><ul>${plan.map((x) => `<li>${hl(x.name, ws)} <span class="sub">· ${esc(x.status || "")}</span></li>`).join("")}</ul>` : ""}</div>
+    </div>`;
+    wireOut(out, q);
+  }
+
+  // 예산
+  let budTopHTML = null;
+  function budSearch(q) {
+    const out = $("#s-bud-out");
+    if (budTopHTML == null) budTopHTML = $("#b-top").innerHTML;
+    if (!q) { $("#b-top").innerHTML = budTopHTML; return; }
+    const ws = qWords(q);
+    const ps = matchProjects(q);
+    if (!ps.length) { out.innerHTML = empty(q); return; }
+    const wb = ps.filter((p) => p.budget);
+    const cur = ps.filter((p) => p.current);
+    const ann = {};
+    wb.forEach((p) => { if (p.start && p.end && p.end >= p.start) { const n = p.end - p.start + 1; for (let y = p.start; y <= p.end; y++) ann[y] = (ann[y] || 0) + p.budget / n; } });
+    const yrs = []; for (let y = 2014; y <= 2033; y++) yrs.push(String(y));
+    out.innerHTML = `<div class="kpis"><div class="kpi"><div class="v">${fmt(ps.length)}</div><div class="l">해당 과제</div><div class="s">예산 기재 ${fmt(wb.length)}건</div></div>
+      <div class="kpi"><div class="v">${fmt(sum(wb.map((p) => p.budget)))}</div><div class="l">총사업비 합계(억원)</div><div class="s">평균 ${fmt(wb.length ? sum(wb.map((p) => p.budget)) / wb.length : 0, 1)}억</div></div>
+      <div class="kpi"><div class="v">${fmt(sum(cur.map((p) => p.budget)))}</div><div class="l">’26판 현행분(억원)</div><div class="s">${fmt(cur.length)}건</div></div>
+      <div class="kpi"><div class="v">${fmt(ann["2026"] || 0)}</div><div class="l">2026년 추정 투자(억원)</div><div class="s">균등 배분 추정</div></div></div>
+      <div class="sgrid"><div class="sbox" style="grid-column:1/-1"><h3>‘${esc(q)}’ 과제 연도별 추정 투자 <span>억원/년</span></h3><div class="chart short" id="c-b-sq"></div></div>
+      <div class="sbox"><h3>국방전략기술 분야</h3>${chipsOf(countBy(wb, (p) => p.stratField))}</div><div class="sbox"><h3>무기체계 분야</h3>${chipsOf(countBy(wb, (p) => p.domain))}</div></div>
+      <p class="note">아래 ‘총사업비 상위 과제’ 표를 검색 결과로 바꿔 보여줍니다. 지우기를 누르면 전체로 돌아갑니다.</p>`;
+    vbar("c-b-sq", yrs, yrs.map((y) => Math.round(ann[y] || 0)), { unit: "억원", labels: false, colorAt: (i, t) => (+yrs[i] > 2026 ? t.soft : t.accent) });
+    const top = wb.slice().sort((a, b) => b.budget - a.budget).slice(0, 40);
+    $("#b-top").innerHTML = `<thead><tr><th>과제명</th><th>무기체계</th><th>국방전략기술</th><th>사업 유형</th><th class="n">기간</th><th class="n">총사업비(억)</th></tr></thead><tbody>` +
+      top.map((p) => `<tr class="click" data-id="${p.id}"><td class="pname">${hl(p.name, ws)}</td><td>${esc(p.domain)}</td><td>${stratTag(p)}</td><td class="sub">${esc(p.prog)}</td><td class="n">${p.start || "–"}–${p.end || ""}</td><td class="n">${fmt(p.budget, 1)}</td></tr>`).join("") + "</tbody>";
+    wireOut(out, q);
+  }
+
+  // 온톨로지
+  let ONTO_PENDING = null;
+  function ontoSearch(q) {
+    const out = $("#s-onto-out");
+    if (!q) return;
+    const ws = qWords(q);
+    const ccs = matchConcepts(q).slice(0, 14), tx = matchTaxo(q).slice(0, 14);
+    if (!ccs.length && !tx.length) { out.innerHTML = empty(q); return; }
+    out.innerHTML = `<div class="sgrid">${ccs.length ? `<div class="sbox"><h3>기술개념 <span>${ccs.length}</span></h3><div class="tags">${ccs.map((c) => `<button class="chip" type="button" data-selcc="${c.id}">${hl(c.name, ws)} · ${fmt(c.nProj)}</button>`).join("")}</div></div>` : ""}
+      ${tx.length ? `<div class="sbox"><h3>국방전략기술 체계 <span>${tx.length}</span></h3><ul>${tx.map((t) => `<li><button class="lnk" type="button" data-sell1="${t.l1}"${t.l2 ? ` data-sell2="${t.l2}"` : ""}>${hl(t.name, ws)}</button> <span class="sub">· ${t.lv} ${esc(t.id)} · ${esc(t.sub || "")}</span></li>`).join("")}</ul></div>` : ""}</div>`;
+    out.onclick = (ev) => {
+      const c = ev.target.closest("[data-selcc]"); if (c) return selectConcept(c.dataset.selcc);
+      const t = ev.target.closest("[data-sell1]"); if (t) return selectL1(t.dataset.sell1, t.dataset.sell2 || null);
+    };
+    if (ccs.length) selectConcept(ccs[0].id); else selectL1(tx[0].l1, tx[0].l2 || null);
+  }
+  function setOntoMode(m) {
+    if (ontoMode === m) return;
+    ontoMode = m;
+    $$("#onto-mode .chip").forEach((c) => c.setAttribute("aria-pressed", c.dataset.m === ontoMode));
+    drawOnto();
+  }
+  function selectConcept(id) {
+    setOntoMode("graph");
+    const c = charts["c-onto"];
+    if (c) {
+      const opt = c.getOption();
+      const idx = (opt.series[0].data || []).findIndex((n) => n.id === id);
+      c.dispatchAction({ type: "downplay", seriesIndex: 0 });
+      if (idx >= 0) { c.dispatchAction({ type: "highlight", seriesIndex: 0, dataIndex: idx }); c.dispatchAction({ type: "showTip", seriesIndex: 0, dataIndex: idx }); }
+    }
+    conceptSide(id);
+    $("#onto-side").scrollIntoView({ behavior: "smooth", block: "nearest" });
+  }
+  function selectL1(l1, l2) {
+    setOntoMode("tree");
+    const c = charts["c-onto"];
+    if (c) {
+      c.dispatchAction({ type: "downplay", seriesIndex: 0 });
+      const name = l2 && D.L2[l2] ? D.L2[l2].name : D.L1[l1].name;
+      c.dispatchAction({ type: "highlight", seriesIndex: 0, name });
+    }
+    l1Side(l1, l2);
+    $("#onto-side").scrollIntoView({ behavior: "smooth", block: "nearest" });
+  }
+
+  // 각 화면 렌더 뒤 검색 연결
+  (function () {
+    const wrap = (k, fn) => { const o = RENDER[k]; RENDER[k] = function () { o(); fn(); }; };
+    wrap("tech", () => bindSearch("s-tech", techSearch));
+    wrap("systems", () => bindSearch("s-sys", sysSearch));
+    wrap("budget", () => { budTopHTML = null; bindSearch("s-bud", budSearch); });
+    wrap("onto", () => {
+      bindSearch("s-onto", ontoSearch);
+      if (ONTO_PENDING) {
+        const p = ONTO_PENDING; ONTO_PENDING = null;
+        setTimeout(() => (p.cc ? selectConcept(p.cc) : selectL1(p.l1, p.l2)), 60);
+      }
+    });
+  })();
+  // 이미 그려진 온톨로지 화면으로 이동할 때도 대기 중인 선택을 적용
+  window.addEventListener("hashchange", () => {
+    if (location.hash === "#onto" && ONTO_PENDING && rendered.has("onto")) {
+      const p = ONTO_PENDING; ONTO_PENDING = null;
+      setTimeout(() => (p.cc ? selectConcept(p.cc) : selectL1(p.l1, p.l2)), 80);
+    }
+  });
+
   /* ---------- 10 데이터 관리(DB) ---------- */
   // 저장 구조: data/db/overrides.json(기존 레코드 수정·삭제), added.json(신규 레코드), planned.json(우리 계획 과제), changelog.json(변경 이력)
   // 브라우저 임시 변경분은 localStorage(atlas-draft)에 보관했다가 GitHub에 커밋한다.

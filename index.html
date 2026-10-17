@@ -75,6 +75,7 @@
       <!-- 02 TECH -->
       <section class="view" id="v-tech" hidden>
         <div><div class="eyebrow">02 · By technology</div><h1>기술별 현황</h1><p class="lede">10대 국방전략기술 분야별 과제·기술개발소요·민간기술 규모와 착수 추이입니다. 카드를 누르면 해당 분야 과제 목록으로 이동합니다.</p></div>
+        <div class="panel search-panel"><div class="controls"><div class="field" style="flex:1 1 320px"><label for="s-tech">기술 검색 (기술개념·국방전략기술·세부기술·기술개발소요·과제)</label><input id="s-tech" type="search" placeholder="예: 레이저, 극초음속, 군집 드론, 양자 센서, SAR"></div><button class="btn" type="button" id="s-tech-go">검색</button><button class="btn ghost" type="button" id="s-tech-clr">지우기</button></div><div id="s-tech-out" class="sres"></div></div>
         <div class="fcards" id="fcards"></div>
         <div class="grid-2">
           <div class="panel"><h2>판별 기술분야 구성</h2><p class="note">’25판부터 8대→6대 기술분야로 개편되어 통합 분류(센서·제어, 기계 등)로 맞춤.</p><div class="chart tall" id="c-t-tf"></div></div>
@@ -90,6 +91,7 @@
       <!-- 03 SYSTEMS -->
       <section class="view" id="v-systems" hidden>
         <div><div class="eyebrow">03 · By weapon system</div><h1>체계별 현황</h1><p class="lede">10대 무기체계 분야와 기술의 교차, 실제 적용 무기체계(소재·부품 기획), 그리고 국가별 기술수준 조사 결과를 함께 봅니다.</p></div>
+        <div class="panel search-panel"><div class="controls"><div class="field" style="flex:1 1 320px"><label for="s-sys">무기체계 검색 (과제·소재부품·기술수준)</label><input id="s-sys" type="search" placeholder="예: KF-21, 잠수함, K9 자주포, 소나, 레이더, 회전익"></div><button class="btn" type="button" id="s-sys-go">검색</button><button class="btn ghost" type="button" id="s-sys-clr">지우기</button></div><div id="s-sys-out" class="sres"></div></div>
         <div class="grid-2">
           <div class="panel"><h2>무기체계 분야 × 국방전략기술</h2><p class="note">’21판 이후 고유 과제 기준(최신 판 표기).</p><div class="chart tall" id="c-s-hm"></div></div>
           <div class="panel"><h2>한국 무기체계별 기술수준 변화</h2><p class="note">최고선진국(미국)=100 대비 %. 점: 2018 → 막대 끝: 2024. 국가별 국방과학기술 수준조사서.</p><div class="chart tall" id="c-s-lv"></div></div>
@@ -121,6 +123,7 @@
       <!-- 05 BUDGET -->
       <section class="view" id="v-budget" hidden>
         <div><div class="eyebrow">05 · Budget</div><h1>예산</h1><p class="lede">과제 총사업비를 사업기간에 균등 배분해 연도별 투자 규모를 추정했습니다. 실제 연차별 집행액과는 다를 수 있습니다.</p></div>
+        <div class="panel search-panel"><div class="controls"><div class="field" style="flex:1 1 320px"><label for="s-bud">예산 검색 (키워드에 해당하는 과제의 총사업비·연도별 투자)</label><input id="s-bud" type="search" placeholder="예: 엔진, 레이저, 위성, 국방협업"></div><button class="btn" type="button" id="s-bud-go">검색</button><button class="btn ghost" type="button" id="s-bud-clr">지우기</button></div><div id="s-bud-out" class="sres"></div></div>
         <div class="panel"><h2>국방전략기술 분야별 연도별 추정 투자</h2><p class="note">억원/년. 모든 칸이 같은 세로축을 씁니다. 2026년 이후는 기획 확정 과제분만 반영.</p><div class="chart xtall" id="c-b-sm"></div></div>
         <div class="grid-2">
           <div class="panel"><h2>’26판 현행 과제 총사업비 · 무기체계 분야</h2><div class="chart tall" id="c-b-dom"></div></div>
@@ -153,6 +156,7 @@
       <!-- 07 ONTOLOGY -->
       <section class="view" id="v-onto" hidden>
         <div><div class="eyebrow">07 · Ontology</div><h1>기술 연계 온톨로지</h1><p class="lede">과제·기술개발소요·민간기술을 공통 개념(Concept)에 연결하고, 같은 과제 안에서 함께 등장하는 개념끼리 이었습니다. 선이 굵을수록 함께 쓰이는 과제가 많습니다. 노드를 누르면 연결된 과제와 소요를 볼 수 있습니다.</p></div>
+        <div class="panel search-panel"><div class="controls"><div class="field" style="flex:1 1 320px"><label for="s-onto">온톨로지 검색 (기술개념·국방전략기술·세부기술 이동)</label><input id="s-onto" type="search" placeholder="예: 레이더, 극초음속, 양자, 군집운용, S26"></div><button class="btn" type="button" id="s-onto-go">검색</button><button class="btn ghost" type="button" id="s-onto-clr">지우기</button></div><div id="s-onto-out" class="sres"></div></div>
         <div class="panel">
           <h2>온톨로지 구조</h2>
           <div class="schema" id="schema"></div>
